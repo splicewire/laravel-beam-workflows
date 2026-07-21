@@ -5,6 +5,7 @@ namespace Splicewire\Beam\Workflows;
 use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
 use Rushing\Popcorn\InvocableRegistry;
+use Splicewire\Beam\Workflows\Admin\WorkflowAdmin;
 use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
 use Splicewire\Beam\Workflows\Blueprint\BlueprintValidator;
 use Splicewire\Beam\Workflows\Bridge\DefinitionBuilder;
@@ -96,6 +97,17 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
         // save path (editor, ticket 08) runs this before a version is written — the code-only line.
         $this->app->singleton(BlueprintValidator::class, fn ($app) => new BlueprintValidator(
             $app->make(GuardRegistry::class),
+        ));
+
+        // The model-agnostic workflow-admin behaviour (the seam pass): catalog / lineage reads /
+        // validate-then-fork. Hosts wire thin controllers over this; transport + auth + persistence
+        // + coverage stay host-side.
+        $this->app->singleton(WorkflowAdmin::class, fn ($app) => new WorkflowAdmin(
+            $app->make(DefinitionStore::class),
+            $app->make(GuardRegistry::class),
+            $app->make(WorkflowBindingRegistry::class),
+            $app->make(BlueprintValidator::class),
+            $app->make(WorkflowTypeRegistry::class),
         ));
 
         $this->app->singleton(WorkflowRunner::class, fn ($app) => new WorkflowRunner(
