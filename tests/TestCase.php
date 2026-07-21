@@ -41,6 +41,7 @@ abstract class TestCase extends Orchestra
         parent::setUp();
 
         $this->createActivityLogTable();
+        $this->createDefinitionStoreTables();
 
         Schema::create('fake_processes', function (Blueprint $table) {
             $table->id();
@@ -72,5 +73,37 @@ abstract class TestCase extends Orchestra
             $table->json('properties')->nullable();
             $table->timestamps();
         });
+    }
+
+    /**
+     * The versioned definition store (ticket 03). In the host these are tenant-scoped migrations
+     * (database/migrations/tenant); the package suite creates them directly, mirroring the real
+     * shape so the DefinitionStore has somewhere to write its immutable versions.
+     */
+    protected function createDefinitionStoreTables(): void
+    {
+        if (! Schema::hasTable('workflow_definition_lineages')) {
+            Schema::create('workflow_definition_lineages', function (Blueprint $table) {
+                $table->uuid('id')->primary();
+                $table->string('key')->unique();
+                $table->string('name');
+                $table->boolean('is_system')->default(false);
+                $table->timestamps();
+            });
+        }
+
+        if (! Schema::hasTable('workflow_definition_versions')) {
+            Schema::create('workflow_definition_versions', function (Blueprint $table) {
+                $table->uuid('id')->primary();
+                $table->uuid('lineage_id');
+                $table->unsignedInteger('version');
+                $table->json('blueprint');
+                $table->boolean('is_active')->default(false);
+                $table->timestamps();
+
+                $table->unique(['lineage_id', 'version']);
+                $table->index(['lineage_id', 'is_active']);
+            });
+        }
     }
 }

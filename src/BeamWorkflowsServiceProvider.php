@@ -12,6 +12,7 @@ use Splicewire\Beam\Workflows\Control\GuardRegistry;
 use Splicewire\Beam\Workflows\Control\WorkflowApplyInvocable;
 use Splicewire\Beam\Workflows\Control\WorkflowRegistry;
 use Splicewire\Beam\Workflows\Control\WorkflowRunner;
+use Splicewire\Beam\Workflows\Definition\DefinitionStore;
 use Splicewire\Beam\Workflows\Display\StatusEmitter;
 use Splicewire\Beam\Workflows\Type\SchemaTypeProjector;
 use Splicewire\Beam\Workflows\Type\TypeIdentityResolver;
@@ -65,6 +66,11 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
         $this->app->singleton(WorkflowBindingRegistry::class, fn ($app) => new WorkflowBindingRegistry(
             $app->bound(LoggerInterface::class) ? $app->make(LoggerInterface::class) : null,
         ));
+
+        // Definition store (PRD v2 §3): the versioned, immutable definition store. Runs on the
+        // default connection — the tenant schema under the host's tenancy. NOT shared as a scalar
+        // connection: it resolves through the ConnectionResolver so a per-tenant swap is honoured.
+        $this->app->singleton(DefinitionStore::class, fn ($app) => new DefinitionStore($app['db']));
 
         // Control seam. The two registries are the host's declaration surfaces (workflows +
         // guards); the runner is the shared Control engine both the node and the Seam C lifecycle
