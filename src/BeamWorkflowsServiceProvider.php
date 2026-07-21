@@ -3,7 +3,9 @@
 namespace Splicewire\Beam\Workflows;
 
 use Illuminate\Support\ServiceProvider;
+use Psr\Log\LoggerInterface;
 use Rushing\Popcorn\InvocableRegistry;
+use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
 use Splicewire\Beam\Workflows\Bridge\DefinitionBuilder;
 use Splicewire\Beam\Workflows\Bridge\WorkflowFactory;
 use Splicewire\Beam\Workflows\Control\GuardRegistry;
@@ -55,6 +57,13 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
         $this->app->singleton(SchemaTypeProjector::class, fn () => new SchemaTypeProjector);
         $this->app->singleton(TypeIdentityResolver::class, fn ($app) => new TypeIdentityResolver(
             $app->make(SchemaTypeProjector::class),
+        ));
+
+        // Binding seam (PRD v2 §2): typeKey → Binding. A binding row existing IS the enable; its
+        // absence IS the disable (the generic unmanaged fallback). Pick-one arity, replacement
+        // logged through the app logger.
+        $this->app->singleton(WorkflowBindingRegistry::class, fn ($app) => new WorkflowBindingRegistry(
+            $app->bound(LoggerInterface::class) ? $app->make(LoggerInterface::class) : null,
         ));
 
         // Control seam. The two registries are the host's declaration surfaces (workflows +
