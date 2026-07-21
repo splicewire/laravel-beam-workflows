@@ -1,0 +1,94 @@
+{
+    "name": "splicewire/laravel-beam-workflows",
+    "description": "The workflows arm of the schemastud beam family: a beam can model status. Sets the platform precedent for two seams — a normalized status projection (Display, over spatie/laravel-activitylog) and a state-machine Circuit node type (Control, over symfony/workflow) — sitting BESIDE the paid laravel-circuit-engine / laravel-composition-engine kernels without modifying either (ADR-0092, ADR-0034). Ships one shared State vocabulary + StatusEvent shape and proves both seams end-to-end on the composition lifecycle.",
+    "keywords": [
+        "laravel",
+        "schemastud",
+        "beam",
+        "workflows",
+        "status",
+        "state-machine",
+        "symfony-workflow"
+    ],
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Stephen Rushing",
+            "email": "stephen@rushing.dev"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/contracts": "^11.0|^12.0|^13.0",
+        "illuminate/support": "^11.0|^12.0|^13.0",
+        "spatie/laravel-activitylog": "^4.0|^5.0",
+        "symfony/workflow": "^6.4|^7.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.0",
+        "orchestra/testbench": "^9.0|^10.0",
+        "pestphp/pest": "^2.0|^3.0",
+        "rushing/laravel-popcorn": "@dev",
+        "splicewire/laravel-circuit-engine": "@dev",
+        "splicewire/laravel-circuit-spine-data": "@dev"
+    },
+    "suggest": {
+        "splicewire/laravel-circuit-engine": "Enables the state-machine Circuit node type (Seam B): the local `workflow.apply` capability registers into the kernel's CapabilityManifest so a state machine slots into a Circuit graph. Without it, the Display substrate (Seam A) and the DefinitionBuilder still work standalone."
+    },
+    "autoload": {
+        "psr-4": {
+            "Splicewire\\Beam\\Workflows\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Splicewire\\Beam\\Workflows\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "1.0.x-dev"
+        },
+        "laravel": {
+            "providers": [
+                "Splicewire\\Beam\\Workflows\\BeamWorkflowsServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "scripts": {
+        "test": "vendor/bin/pest",
+        "pint": "@php -d memory_limit=512M vendor/bin/pint"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../*",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "../../rushing/*",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "../../schemastud/*",
+            "options": {
+                "symlink": true
+            }
+        }
+    ]
+}
