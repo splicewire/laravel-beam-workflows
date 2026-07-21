@@ -27,27 +27,51 @@ class TypeIdentityResolver
     ) {}
 
     /**
-     * Resolve an object to its workflow-type key, or `null` if it is unmanaged.
+     * Resolve an object to its PRIMARY (most specific) workflow-type key, or `null` if it is
+     * unmanaged. This is the first of {@see candidatesFor()} — a schema identity outranks the class
+     * identity, so a schema-driven record keys off its schema.
      */
     public function forObject(object $object): ?string
     {
-        // First door: the object declares its own identity.
-        if ($object instanceof WorkflowManaged) {
-            $key = trim($object->workflowType());
+        return $this->candidatesFor($object)[0] ?? null;
+    }
 
-            return $key !== '' ? $key : null;
-        }
+    /**
+     * The ordered candidate type keys for an object, MOST SPECIFIC FIRST. An object may resolve to
+     * more than one identity — a schema-driven record that is also a model class projects through
+     * BOTH doors — and the binding registry (ticket 02) picks the first candidate that actually has
+     * a binding. This is what lets a specific schema be governed by its own workflow while every
+     * other record of the same class falls back to the class-level workflow.
+     *
+     *   1. Schema door (specific): a `x-stud` schema type → its workflow-type key (via the projector).
+     *   2. Model door (generic fallback): the class's declared `workflowType()`.
+     *
+     * @return list<string>
+     */
+    public function candidatesFor(object $object): array
+    {
+        $candidates = [];
 
-        // Second door: a schema-driven record projects its `x-stud` type into the same namespace.
+        // Schema door first — a schema-driven record's schema identity is the more specific key.
         if ($object instanceof HasSchemaType) {
             $schemaType = $object->xStudType();
-
-            return $schemaType !== null && $schemaType !== ''
-                ? $this->projector->project($schemaType)
-                : null;
+            if ($schemaType !== null && $schemaType !== '') {
+                $projected = $this->projector->project($schemaType);
+                if ($projected !== null && $projected !== '') {
+                    $candidates[] = $projected;
+                }
+            }
         }
 
-        return null;
+        // Model door — the class identity, as a fallback beneath any schema-specific key.
+        if ($object instanceof WorkflowManaged) {
+            $key = trim($object->workflowType());
+            if ($key !== '') {
+                $candidates[] = $key;
+            }
+        }
+
+        return array_values(array_unique($candidates));
     }
 
     /**

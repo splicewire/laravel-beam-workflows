@@ -1,5 +1,6 @@
 <?php
 
+use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
 use Splicewire\Beam\Workflows\Type\Concerns\WorkflowManaged as WorkflowManagedTrait;
 use Splicewire\Beam\Workflows\Type\Contracts\HasSchemaType;
 use Splicewire\Beam\Workflows\Type\Contracts\WorkflowManaged;
@@ -119,6 +120,57 @@ it('treats a blank type key as unmanaged', function () {
     };
 
     expect(app(TypeIdentityResolver::class)->forObject($blank))->toBeNull();
+});
+
+/** A model that is ALSO schema-driven — resolves through both doors. */
+class FakeSchemaDrivenComposition implements HasSchemaType, WorkflowManaged
+{
+    use WorkflowManagedTrait;
+
+    public function __construct(private ?string $schemaType) {}
+
+    public function workflowType(): string
+    {
+        return 'composition';
+    }
+
+    public function xStudType(): ?string
+    {
+        return $this->schemaType;
+    }
+}
+
+it('ranks the schema identity above the class identity (specific first), with the class as fallback', function () {
+    $projector = new SchemaTypeProjector(identityByDefault: true);
+    $resolver = new TypeIdentityResolver($projector);
+
+    // Schema-driven → schema key is primary, class key is the fallback candidate.
+    $driven = new FakeSchemaDrivenComposition('article');
+    expect($resolver->candidatesFor($driven))->toBe(['article', 'composition'])
+        ->and($resolver->forObject($driven))->toBe('article');
+
+    // Not schema-driven → only the class key.
+    $plain = new FakeSchemaDrivenComposition(null);
+    expect($resolver->candidatesFor($plain))->toBe(['composition'])
+        ->and($resolver->forObject($plain))->toBe('composition');
+});
+
+it('picks the first BOUND candidate: schema binding wins, else the class binding', function () {
+    $resolver = new TypeIdentityResolver(new SchemaTypeProjector(identityByDefault: true));
+    $registry = new WorkflowBindingRegistry;
+    $registry->bind('composition', 'composition.lifecycle');
+
+    $driven = new FakeSchemaDrivenComposition('article');
+
+    // No schema binding yet → falls back to the class binding.
+    expect($registry->forObject($driven, $resolver)->typeKey)->toBe('composition');
+
+    // Bind the schema → it now wins over the class binding.
+    $registry->bind('article', 'article.lifecycle');
+    expect($registry->forObject($driven, $resolver)->typeKey)->toBe('article');
+
+    // A different schema with no binding still falls back to the class.
+    expect($registry->forObject(new FakeSchemaDrivenComposition('memo'), $resolver)->typeKey)->toBe('composition');
 });
 
 it('supports an identity-by-default projector for a schema-first host', function () {

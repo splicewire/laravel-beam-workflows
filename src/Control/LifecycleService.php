@@ -132,10 +132,12 @@ class LifecycleService
             return null;
         }
 
-        [$blueprint] = $resolved;
+        [$blueprint, $binding] = $resolved;
 
         return [
-            'type' => (string) $this->types->forObject($model),
+            // The type key that actually governs this object (the matched binding), which for a
+            // schema-driven record may be its schema key rather than its class key.
+            'type' => $binding->typeKey,
             'places' => $blueprint->places,
             'transitions' => array_map(
                 fn ($t) => ['name' => $t->name, 'from' => $t->from, 'to' => $t->to],

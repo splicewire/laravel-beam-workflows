@@ -72,14 +72,20 @@ class WorkflowBindingRegistry
     }
 
     /**
-     * Resolve an object straight to its binding: type-identity door (ticket 01) then this seam.
-     * `null` when the object is untyped OR its type is unbound — both are unmanaged.
+     * Resolve an object straight to its binding: the type-identity candidates (ticket 01,
+     * most-specific first) filtered through this seam — the FIRST candidate that has a binding wins.
+     * So a schema-driven record bound at the schema level uses that workflow, while an unbound schema
+     * falls back to its class-level binding. `null` when no candidate is bound (⇒ unmanaged).
      */
     public function forObject(object $object, TypeIdentityResolver $resolver): ?Binding
     {
-        $typeKey = $resolver->forObject($object);
+        foreach ($resolver->candidatesFor($object) as $typeKey) {
+            if ($this->has($typeKey)) {
+                return $this->for($typeKey);
+            }
+        }
 
-        return $typeKey !== null ? $this->for($typeKey) : null;
+        return null;
     }
 
     /**
