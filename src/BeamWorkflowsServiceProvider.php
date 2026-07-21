@@ -12,6 +12,8 @@ use Splicewire\Beam\Workflows\Bridge\DefinitionBuilder;
 use Splicewire\Beam\Workflows\Bridge\WorkflowFactory;
 use Splicewire\Beam\Workflows\Control\GuardRegistry;
 use Splicewire\Beam\Workflows\Control\LifecycleService;
+use Splicewire\Beam\Workflows\Control\SubjectResolverRegistry;
+use Splicewire\Beam\Workflows\Control\WorkflowActuator;
 use Splicewire\Beam\Workflows\Control\WorkflowApplyInvocable;
 use Splicewire\Beam\Workflows\Control\WorkflowRegistry;
 use Splicewire\Beam\Workflows\Control\WorkflowRunner;
@@ -125,6 +127,15 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
             $app->make(DefinitionStore::class),
             $app->make(WorkflowRegistry::class),
             $app->make(WorkflowRunner::class),
+        ));
+
+        // Generic actuation seam (beam-workflows v2): the SubjectResolverRegistry maps a `kind` slug
+        // to a record finder (a host registers one line per managed type); the WorkflowActuator drives
+        // ANY resolved record's lifecycle over the generic LifecycleService — no per-model endpoint.
+        $this->app->singleton(SubjectResolverRegistry::class);
+        $this->app->singleton(WorkflowActuator::class, fn ($app) => new WorkflowActuator(
+            $app->make(SubjectResolverRegistry::class),
+            $app->make(LifecycleService::class),
         ));
 
         $this->app->singleton(WorkflowApplyInvocable::class, fn ($app) => new WorkflowApplyInvocable(
