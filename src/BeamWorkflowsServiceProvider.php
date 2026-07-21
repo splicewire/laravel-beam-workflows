@@ -19,6 +19,7 @@ use Splicewire\Beam\Workflows\Display\StatusEmitter;
 use Splicewire\Beam\Workflows\Migration\MarkingMigrator;
 use Splicewire\Beam\Workflows\Type\SchemaTypeProjector;
 use Splicewire\Beam\Workflows\Type\TypeIdentityResolver;
+use Splicewire\Beam\Workflows\Type\WorkflowTypeRegistry;
 
 /**
  * The workflows-arm provider. "A beam can model status."
@@ -59,6 +60,7 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
         // (schema) resolution door — a pure mapping stub with no consumer yet — and the
         // TypeIdentityResolver maps any object to its workflow-type key (or null ⇒ unmanaged).
         $this->app->singleton(SchemaTypeProjector::class, fn () => new SchemaTypeProjector);
+        $this->app->singleton(WorkflowTypeRegistry::class);
         $this->app->singleton(TypeIdentityResolver::class, fn ($app) => new TypeIdentityResolver(
             $app->make(SchemaTypeProjector::class),
         ));
