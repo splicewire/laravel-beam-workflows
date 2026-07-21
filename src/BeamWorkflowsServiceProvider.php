@@ -6,6 +6,7 @@ use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
 use Rushing\Popcorn\InvocableRegistry;
 use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
+use Splicewire\Beam\Workflows\Blueprint\BlueprintValidator;
 use Splicewire\Beam\Workflows\Bridge\DefinitionBuilder;
 use Splicewire\Beam\Workflows\Bridge\WorkflowFactory;
 use Splicewire\Beam\Workflows\Control\GuardRegistry;
@@ -78,6 +79,12 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
         // drive.
         $this->app->singleton(GuardRegistry::class);
         $this->app->singleton(WorkflowRegistry::class);
+
+        // Blueprint validator (ticket 05): referential integrity + guard-catalog membership. The
+        // save path (editor, ticket 08) runs this before a version is written — the code-only line.
+        $this->app->singleton(BlueprintValidator::class, fn ($app) => new BlueprintValidator(
+            $app->make(GuardRegistry::class),
+        ));
 
         $this->app->singleton(WorkflowRunner::class, fn ($app) => new WorkflowRunner(
             $app->make(DefinitionBuilder::class),
