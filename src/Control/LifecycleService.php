@@ -115,6 +115,38 @@ class LifecycleService
     }
 
     /**
+     * The full DEFINITION PROJECTION a model-blind runtime UI needs (the `<WorkflowStepper>`, ticket
+     * 07): the type key, the pinned version's places + transitions, the current marking, and the
+     * backend-computed available transitions. `null` for an unmanaged model. This is the endpoint
+     * shape ticket 04 anticipated — everything the stepper renders, computed server-side so the UI
+     * never hardcodes a graph or a button list.
+     *
+     * @param  array<string, mixed>  $params
+     * @return array{type: string, places: list<string>, transitions: list<array{name: string, from: list<string>, to: list<string>}>, current: string, available: list<string>}|null
+     */
+    public function projection(Model $model, array $params = []): ?array
+    {
+        $resolved = $this->resolve($model);
+
+        if ($resolved === null) {
+            return null;
+        }
+
+        [$blueprint] = $resolved;
+
+        return [
+            'type' => (string) $this->types->forObject($model),
+            'places' => $blueprint->places,
+            'transitions' => array_map(
+                fn ($t) => ['name' => $t->name, 'from' => $t->from, 'to' => $t->to],
+                $blueprint->transitions,
+            ),
+            'current' => $this->currentPlace($model, $blueprint),
+            'available' => $this->available($model, $params),
+        ];
+    }
+
+    /**
      * Resolve the model to `[blueprint, binding, versionId|null]`, or `null` if unmanaged.
      *
      * @return array{0: WorkflowBlueprint, 1: Binding, 2: string|null}|null

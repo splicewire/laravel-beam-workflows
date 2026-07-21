@@ -125,6 +125,22 @@ it('keeps a pinned model on its old graph after the definition forks', function 
     expect(app(LifecycleService::class)->available($ticket->fresh()))->toBe(['close']);
 });
 
+it('exposes a model-blind projection (places, transitions, current, available) for the stepper', function () {
+    $ticket = SupportTicket::create(['status' => 'open']);
+
+    $projection = app(LifecycleService::class)->projection($ticket);
+
+    expect($projection['type'])->toBe('support-ticket')
+        ->and($projection['places'])->toBe(['open', 'triaged', 'closed'])
+        ->and($projection['current'])->toBe('open')
+        ->and($projection['available'])->toBe(['triage'])
+        ->and($projection['transitions'][0])->toBe(['name' => 'triage', 'from' => ['open'], 'to' => ['triaged']]);
+
+    // Unmanaged → null projection.
+    app(WorkflowBindingRegistry::class)->unbind('support-ticket');
+    expect(app(LifecycleService::class)->projection($ticket->fresh()))->toBeNull();
+});
+
 it('is a no-op for an unmanaged model (unbound type)', function () {
     app(WorkflowBindingRegistry::class)->unbind('support-ticket');
 
