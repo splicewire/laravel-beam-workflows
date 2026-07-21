@@ -16,6 +16,7 @@ use Splicewire\Beam\Workflows\Control\WorkflowRegistry;
 use Splicewire\Beam\Workflows\Control\WorkflowRunner;
 use Splicewire\Beam\Workflows\Definition\DefinitionStore;
 use Splicewire\Beam\Workflows\Display\StatusEmitter;
+use Splicewire\Beam\Workflows\Migration\MarkingMigrator;
 use Splicewire\Beam\Workflows\Type\SchemaTypeProjector;
 use Splicewire\Beam\Workflows\Type\TypeIdentityResolver;
 
@@ -73,6 +74,15 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
         // default connection — the tenant schema under the host's tenancy. NOT shared as a scalar
         // connection: it resolves through the ConnectionResolver so a per-tenant swap is honoured.
         $this->app->singleton(DefinitionStore::class, fn ($app) => new DefinitionStore($app['db']));
+
+        // Marking migrator (ticket 06): the only sanctioned old→new version remap. Model-blind —
+        // the host supplies the cohort; this validates, aborts-on-unmappable, or re-pins in one
+        // transaction with a Display event per object.
+        $this->app->singleton(MarkingMigrator::class, fn ($app) => new MarkingMigrator(
+            $app->make(DefinitionStore::class),
+            $app->make(StatusEmitter::class),
+            $app['db'],
+        ));
 
         // Control seam. The two registries are the host's declaration surfaces (workflows +
         // guards); the runner is the shared Control engine both the node and the Seam C lifecycle
