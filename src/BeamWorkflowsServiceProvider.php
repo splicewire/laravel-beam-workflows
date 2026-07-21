@@ -11,6 +11,8 @@ use Splicewire\Beam\Workflows\Control\WorkflowApplyInvocable;
 use Splicewire\Beam\Workflows\Control\WorkflowRegistry;
 use Splicewire\Beam\Workflows\Control\WorkflowRunner;
 use Splicewire\Beam\Workflows\Display\StatusEmitter;
+use Splicewire\Beam\Workflows\Type\SchemaTypeProjector;
+use Splicewire\Beam\Workflows\Type\TypeIdentityResolver;
 
 /**
  * The workflows-arm provider. "A beam can model status."
@@ -45,6 +47,14 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
         $this->app->singleton(StatusEmitter::class, fn ($app) => new StatusEmitter(
             $app['config'],
             $app['events'],
+        ));
+
+        // Type seam (PRD v2 §1). The socket's selector: the SchemaTypeProjector is the second
+        // (schema) resolution door — a pure mapping stub with no consumer yet — and the
+        // TypeIdentityResolver maps any object to its workflow-type key (or null ⇒ unmanaged).
+        $this->app->singleton(SchemaTypeProjector::class, fn () => new SchemaTypeProjector);
+        $this->app->singleton(TypeIdentityResolver::class, fn ($app) => new TypeIdentityResolver(
+            $app->make(SchemaTypeProjector::class),
         ));
 
         // Control seam. The two registries are the host's declaration surfaces (workflows +
