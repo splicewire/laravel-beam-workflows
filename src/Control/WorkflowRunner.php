@@ -96,6 +96,33 @@ class WorkflowRunner
         );
     }
 
+    /**
+     * The transitions ENABLED for a subject right now — the marking allows them AND their guards do
+     * not veto (symfony's `getEnabledTransitions` runs the guard listeners). This drives the
+     * stepper's action buttons (ticket 07) so the UI offers exactly the legal moves, never a
+     * hardcoded list. Returns transition names (a name may legally appear once).
+     *
+     * @return list<string>
+     */
+    public function enabled(
+        WorkflowBlueprint $blueprint,
+        object $subject,
+        string $markingProperty = 'marking',
+    ): array {
+        $definition = $this->builder->build($blueprint);
+        $dispatcher = new EventDispatcher;
+        $this->wireGuards($dispatcher, $blueprint);
+
+        $workflow = $this->factory->make($definition, $blueprint->name, $markingProperty, $dispatcher);
+
+        $names = [];
+        foreach ($workflow->getEnabledTransitions($subject) as $transition) {
+            $names[] = $transition->getName();
+        }
+
+        return array_values(array_unique($names));
+    }
+
     protected function wireGuards(EventDispatcher $dispatcher, WorkflowBlueprint $blueprint): void
     {
         $guardMap = [];

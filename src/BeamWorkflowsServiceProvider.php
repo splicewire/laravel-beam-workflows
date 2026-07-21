@@ -9,6 +9,7 @@ use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
 use Splicewire\Beam\Workflows\Bridge\DefinitionBuilder;
 use Splicewire\Beam\Workflows\Bridge\WorkflowFactory;
 use Splicewire\Beam\Workflows\Control\GuardRegistry;
+use Splicewire\Beam\Workflows\Control\LifecycleService;
 use Splicewire\Beam\Workflows\Control\WorkflowApplyInvocable;
 use Splicewire\Beam\Workflows\Control\WorkflowRegistry;
 use Splicewire\Beam\Workflows\Control\WorkflowRunner;
@@ -83,6 +84,16 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
             $app->make(WorkflowFactory::class),
             $app->make(StatusEmitter::class),
             $app->make(GuardRegistry::class),
+        ));
+
+        // The generic, model-blind lifecycle control (PRD v2 §4): the replacement for typed
+        // per-model lifecycle methods. Wires type → binding → pinned version → guarded transition.
+        $this->app->singleton(LifecycleService::class, fn ($app) => new LifecycleService(
+            $app->make(TypeIdentityResolver::class),
+            $app->make(WorkflowBindingRegistry::class),
+            $app->make(DefinitionStore::class),
+            $app->make(WorkflowRegistry::class),
+            $app->make(WorkflowRunner::class),
         ));
 
         $this->app->singleton(WorkflowApplyInvocable::class, fn ($app) => new WorkflowApplyInvocable(
