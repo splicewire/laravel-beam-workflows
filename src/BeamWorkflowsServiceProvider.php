@@ -6,10 +6,15 @@ use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
 use Rushing\Popcorn\InvocableRegistry;
 use Splicewire\Beam\Workflows\Admin\WorkflowAdmin;
+use Splicewire\Beam\Workflows\Awaiting\AwaitEffect;
+use Splicewire\Beam\Workflows\Awaiting\ClearAwaitingsOnTransition;
+use Splicewire\Beam\Workflows\Awaiting\Contracts\AwaitingStore;
+use Splicewire\Beam\Workflows\Awaiting\Contracts\WorkflowNotifier;
 use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
 use Splicewire\Beam\Workflows\Blueprint\BlueprintValidator;
 use Splicewire\Beam\Workflows\Bridge\DefinitionBuilder;
 use Splicewire\Beam\Workflows\Bridge\WorkflowFactory;
+use Splicewire\Beam\Workflows\Control\Events\WorkflowTransitioned;
 use Splicewire\Beam\Workflows\Control\GuardRegistry;
 use Splicewire\Beam\Workflows\Control\LifecycleService;
 use Splicewire\Beam\Workflows\Control\SubjectResolverRegistry;
@@ -163,6 +168,33 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
         }
 
         $this->registerStateMachineNode();
+        $this->registerAwaitingSeam();
+    }
+
+    /**
+     * Wire the awaiting seam (beam-workflows-ux tickets 07/09/11): the one generic `workflow.await`
+     * effect (into the effect catalog) + the synchronous clear-on-leave listener. Both call the
+     * host-bound {@see AwaitingStore} /
+     * {@see WorkflowNotifier} contracts and are INERT
+     * until the host binds them — so a host that never binds a store boots cleanly with the effect
+     * merely visible-but-dormant in the catalog.
+     *
+     * The listener is registered as a plain (non-queued) listener so it runs during the event dispatch
+     * inside `react()`, BEFORE the effect stamp — the clear-then-stamp ordering ticket 07 mandates.
+     */
+    protected function registerAwaitingSeam(): void
+    {
+        $this->app->make(TransitionEffectRegistry::class)->register(
+            AwaitEffect::REF,
+            $this->app->make(AwaitEffect::class),
+            label: 'Await — notify recipients + add a "waiting on you" inbox item',
+            paramsSchema: AwaitEffect::paramsSchema(),
+        );
+
+        $this->app['events']->listen(
+            WorkflowTransitioned::class,
+            [ClearAwaitingsOnTransition::class, 'handle'],
+        );
     }
 
     /**
