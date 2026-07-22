@@ -24,6 +24,10 @@ readonly class WorkflowTransitioned
     /**
      * @param  list<string>  $from  Places the marking left.
      * @param  list<string>  $to  Places the marking entered (the new marking).
+     * @param  string|null  $actor  The host-supplied opaque `kind:selector` token for who drove this
+     *                              transition (e.g. `user:42`), or null for a system/queue path. The
+     *                              engine forwards it verbatim; a notify effect resolves + self-excludes
+     *                              it host-side (identity co-location, beam-workflows-ux ticket 05).
      */
     public function __construct(
         public Model $subject,
@@ -32,5 +36,6 @@ readonly class WorkflowTransitioned
         public array $to,
         public ?string $versionId = null,
         public ?string $runId = null,
+        public ?string $actor = null,
     ) {}
 }

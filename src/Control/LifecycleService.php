@@ -55,9 +55,14 @@ class LifecycleService
      * returns the reason in `blockers`.
      *
      * @param  array<string, mixed>  $params  Call-time guard params, merged over the binding's params.
+     * @param  TransitionContext|null  $context  The run id + opaque actor token for this attempt (the
+     *                                           host supplies the actor; the engine forwards it, never
+     *                                           resolving it). Null = an ungrouped, actorless move.
      */
-    public function transition(Model $model, string $transitionName, array $params = [], ?string $runId = null): TransitionResult
+    public function transition(Model $model, string $transitionName, array $params = [], ?TransitionContext $context = null): TransitionResult
     {
+        $context ??= new TransitionContext;
+
         $resolved = $this->resolve($model);
 
         if ($resolved === null) {
@@ -74,11 +79,11 @@ class LifecycleService
         $from = $this->currentPlace($model, $blueprint);
         $subject = MarkingSubject::fromPlaces([$from], $this->guardContext($binding, $params));
 
-        $result = $this->runner->apply($blueprint, $subject, $transitionName, statusSubject: $model, runId: $runId);
+        $result = $this->runner->apply($blueprint, $subject, $transitionName, statusSubject: $model, context: $context);
 
         if ($result->applied) {
             $this->project($model, $result->marking, $versionId);
-            $this->react($model, $blueprint, $transitionName, [$from], $result->marking, $versionId, $runId);
+            $this->react($model, $blueprint, $transitionName, [$from], $result->marking, $versionId, $context);
         }
 
         return $result;
@@ -93,9 +98,9 @@ class LifecycleService
      * @param  list<string>  $from
      * @param  list<string>  $to
      */
-    protected function react(Model $model, WorkflowBlueprint $blueprint, string $transitionName, array $from, array $to, ?string $versionId, ?string $runId): void
+    protected function react(Model $model, WorkflowBlueprint $blueprint, string $transitionName, array $from, array $to, ?string $versionId, TransitionContext $context): void
     {
-        $event = new WorkflowTransitioned($model, $transitionName, $from, $to, $versionId, $runId);
+        $event = new WorkflowTransitioned($model, $transitionName, $from, $to, $versionId, $context->runId, $context->actor);
 
         $this->events->dispatch($event);
 

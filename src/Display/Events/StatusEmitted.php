@@ -34,6 +34,7 @@ class StatusEmitted implements ShouldBroadcast
         public readonly StatusEvent $status,
         public readonly ?string $runId = null,
         public readonly ?int $activityId = null,
+        public readonly ?string $actor = null,
     ) {}
 
     public function broadcastWhen(): bool
@@ -76,6 +77,9 @@ class StatusEmitted implements ShouldBroadcast
             'progress' => $this->status->progress?->toArray(),
             'at' => $this->status->at()->format(DATE_ATOM),
             'run_id' => $this->runId,
+            // The single opaque "who" — deliberately broadcast (subscribers are already authed); the
+            // Display side resolves the token → name at read time (beam-workflows-ux ticket 05).
+            'actor' => $this->actor,
         ];
     }
 }

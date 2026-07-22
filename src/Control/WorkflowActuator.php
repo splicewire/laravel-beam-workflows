@@ -52,11 +52,13 @@ class WorkflowActuator
     }
 
     /**
-     * Apply a transition by name, pulling the model's own guard context.
+     * Apply a transition by name, pulling the model's own guard context. The host passes a
+     * {@see TransitionContext} carrying the opaque actor token (e.g. `user:42`) it stamped from its
+     * own auth — the package never reads `Auth::user()` (identity co-location).
      */
-    public function transition(Model $model, string $name, ?string $runId = null): TransitionResult
+    public function transition(Model $model, string $name, ?TransitionContext $context = null): TransitionResult
     {
-        return $this->lifecycle->transition($model, $name, $this->context($model), $runId);
+        return $this->lifecycle->transition($model, $name, $this->context($model), $context);
     }
 
     public function manages(Model $model): bool

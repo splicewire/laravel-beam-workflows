@@ -9,6 +9,7 @@ use Splicewire\Beam\Workflows\Blueprint\BlueprintValidator;
 use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
 use Splicewire\Beam\Workflows\Control\Events\WorkflowTransitioned;
 use Splicewire\Beam\Workflows\Control\LifecycleService;
+use Splicewire\Beam\Workflows\Control\TransitionContext;
 use Splicewire\Beam\Workflows\Control\TransitionEffectRegistry;
 use Splicewire\Beam\Workflows\Definition\DefinitionStore;
 use Splicewire\Beam\Workflows\Type\Concerns\WorkflowManaged as WorkflowManagedTrait;
@@ -80,6 +81,40 @@ it('fires the structured WorkflowTransitioned event on an applied transition', f
         ->and($captured->from)->toBe(['open'])
         ->and($captured->to)->toBe(['closed'])
         ->and($captured->subject->is($ticket))->toBeTrue();
+});
+
+it('threads the opaque actor token from the TransitionContext onto the event', function () {
+    app(DefinitionStore::class)->ensureSystemLineage('effect.lifecycle', 'Effect Lifecycle', effectBlueprint());
+    app(WorkflowBindingRegistry::class)->bind('effect-ticket', 'effect.lifecycle');
+
+    $captured = null;
+    Event::listen(WorkflowTransitioned::class, function (WorkflowTransitioned $e) use (&$captured) {
+        $captured = $e;
+    });
+
+    // The host stamps an opaque `kind:selector` token; the engine forwards it verbatim, never resolving.
+    app(LifecycleService::class)->transition(
+        EffectTicket::create(['status' => 'open']),
+        'close',
+        context: new TransitionContext(actor: 'user:42', runId: 'ctx-run'),
+    );
+
+    expect($captured->actor)->toBe('user:42')
+        ->and($captured->runId)->toBe('ctx-run');
+});
+
+it('leaves the actor null when no context is supplied (a system/queue path)', function () {
+    app(DefinitionStore::class)->ensureSystemLineage('effect.lifecycle', 'Effect Lifecycle', effectBlueprint());
+    app(WorkflowBindingRegistry::class)->bind('effect-ticket', 'effect.lifecycle');
+
+    $captured = null;
+    Event::listen(WorkflowTransitioned::class, function (WorkflowTransitioned $e) use (&$captured) {
+        $captured = $e;
+    });
+
+    app(LifecycleService::class)->transition(EffectTicket::create(['status' => 'open']), 'close');
+
+    expect($captured->actor)->toBeNull();
 });
 
 it('runs a transition effect with its author-set params', function () {

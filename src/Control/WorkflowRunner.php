@@ -42,20 +42,22 @@ class WorkflowRunner
      *                           node, the host model for a lifecycle).
      * @param  Model|null  $statusSubject  Who the emitted StatusEvent is *about* (may be the host
      *                                     model even when the marking rides a throwaway subject).
+     * @param  TransitionContext|null  $context  The run id + opaque actor token carried onto the emitted
+     *                                           Display event (both null for an ungrouped, actorless run).
      */
     public function apply(
         WorkflowBlueprint $blueprint,
         object $subject,
         string $event,
         ?Model $statusSubject = null,
-        ?string $runId = null,
+        ?TransitionContext $context = null,
         string $markingProperty = 'marking',
     ): TransitionResult {
         $definition = $this->builder->build($blueprint);
         $dispatcher = new EventDispatcher;
 
         $this->wireGuards($dispatcher, $blueprint);
-        $this->wireStatusEmission($dispatcher, $blueprint, $statusSubject, $runId);
+        $this->wireStatusEmission($dispatcher, $blueprint, $statusSubject, $context ?? new TransitionContext);
 
         $workflow = $this->factory->make($definition, $blueprint->name, $markingProperty, $dispatcher);
 
@@ -157,9 +159,9 @@ class WorkflowRunner
         });
     }
 
-    protected function wireStatusEmission(EventDispatcher $dispatcher, WorkflowBlueprint $blueprint, ?Model $statusSubject, ?string $runId): void
+    protected function wireStatusEmission(EventDispatcher $dispatcher, WorkflowBlueprint $blueprint, ?Model $statusSubject, TransitionContext $context): void
     {
-        $dispatcher->addListener("workflow.{$blueprint->name}.completed", function (CompletedEvent $event) use ($statusSubject, $runId) {
+        $dispatcher->addListener("workflow.{$blueprint->name}.completed", function (CompletedEvent $event) use ($statusSubject, $context) {
             $transition = $event->getTransition()?->getName() ?? '';
             $places = array_keys($event->getMarking()->getPlaces());
 
@@ -172,7 +174,8 @@ class WorkflowRunner
             $this->emitter->emit(
                 $statusSubject,
                 StatusEvent::whole($state, "transition:{$transition} → ".implode(',', $places)),
-                $runId,
+                $context->runId,
+                $context->actor,
             );
         });
     }

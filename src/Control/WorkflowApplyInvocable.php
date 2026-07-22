@@ -66,7 +66,9 @@ class WorkflowApplyInvocable implements Invocable
             is_array($context) ? $context : [],
         );
 
-        $result = $this->runner->apply($blueprint, $subject, $event, statusSubject: null, runId: $runId);
+        // The stateless node path has no actor (Circuit marking calculator, not a user-driven
+        // lifecycle) — only the run id groups its Display events.
+        $result = $this->runner->apply($blueprint, $subject, $event, statusSubject: null, context: new TransitionContext(runId: $runId));
 
         return ['type' => 'workflow.marking', 'payload' => $result->toArray()];
     }

@@ -28,6 +28,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Actor key — the opaque "who" on a transition's status entry
+    |--------------------------------------------------------------------------
+    |
+    | When a transition carries a host-supplied actor token (a `kind:selector`
+    | string like `user:42`), it rides `properties.<actor_key>` on the status
+    | activity AND the broadcast payload — the SINGLE canonical "who" for a
+    | workflow-status entry. The engine suppresses spatie's auto-`Auth::user()`
+    | causer for these entries (it is opaque to identity), so the token in this
+    | property is the only representation of who drove the move. Null = a system
+    | / queue / migration path with no actor.
+    |
+    */
+    'actor_key' => 'actor',
+
+    /*
+    |--------------------------------------------------------------------------
     | Broadcast on emit
     |--------------------------------------------------------------------------
     |
