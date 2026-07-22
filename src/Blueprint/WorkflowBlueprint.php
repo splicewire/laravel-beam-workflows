@@ -137,6 +137,7 @@ readonly class WorkflowBlueprint
                             'from' => $places,
                             'to' => $places,
                             'guard' => ['type' => 'string'],
+                            'effects' => ['type' => 'array', 'items' => ['type' => 'string']],
                             'metadata' => ['type' => 'object'],
                         ],
                     ],

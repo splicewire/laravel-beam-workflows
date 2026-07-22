@@ -4,6 +4,7 @@ use Splicewire\Beam\Workflows\Blueprint\BlueprintValidator;
 use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
 use Splicewire\Beam\Workflows\Control\GuardRegistry;
 use Splicewire\Beam\Workflows\Control\MarkingSubject;
+use Splicewire\Beam\Workflows\Control\TransitionEffectRegistry;
 
 /*
  * Ticket 05 — the guard catalog (the code-only security line). A registered guard advertises a
@@ -31,7 +32,7 @@ it('advertises a catalog entry (name, label, params schema) per registered guard
 it('rejects a blueprint whose transition references an unknown guard', function () {
     $guards = new GuardRegistry;
     $guards->register('known_guard', fn () => true);
-    $validator = new BlueprintValidator($guards);
+    $validator = new BlueprintValidator($guards, new TransitionEffectRegistry);
 
     $blueprint = WorkflowBlueprint::fromArray([
         'name' => 'x',
@@ -48,7 +49,7 @@ it('rejects a blueprint whose transition references an unknown guard', function 
 it('accepts a blueprint whose guards are all catalog members', function () {
     $guards = new GuardRegistry;
     $guards->register('known_guard', fn () => true);
-    $validator = new BlueprintValidator($guards);
+    $validator = new BlueprintValidator($guards, new TransitionEffectRegistry);
 
     $blueprint = WorkflowBlueprint::fromArray([
         'name' => 'x',

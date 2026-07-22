@@ -3,10 +3,12 @@
 namespace Splicewire\Beam\Workflows\Control;
 
 use BackedEnum;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Database\Eloquent\Model;
 use Splicewire\Beam\Workflows\Binding\Binding;
 use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
 use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
+use Splicewire\Beam\Workflows\Control\Events\WorkflowTransitioned;
 use Splicewire\Beam\Workflows\Definition\DefinitionStore;
 use Splicewire\Beam\Workflows\Type\Contracts\WorkflowManaged;
 use Splicewire\Beam\Workflows\Type\TypeIdentityResolver;
@@ -42,6 +44,8 @@ class LifecycleService
         protected DefinitionStore $store,
         protected WorkflowRegistry $registry,
         protected WorkflowRunner $runner,
+        protected TransitionEffectRegistry $effects,
+        protected Dispatcher $events,
     ) {}
 
     /**
@@ -67,18 +71,51 @@ class LifecycleService
 
         [$blueprint, $binding, $versionId] = $resolved;
 
-        $subject = MarkingSubject::fromPlaces(
-            [$this->currentPlace($model, $blueprint)],
-            $this->guardContext($binding, $params),
-        );
+        $from = $this->currentPlace($model, $blueprint);
+        $subject = MarkingSubject::fromPlaces([$from], $this->guardContext($binding, $params));
 
         $result = $this->runner->apply($blueprint, $subject, $transitionName, statusSubject: $model, runId: $runId);
 
         if ($result->applied) {
             $this->project($model, $result->marking, $versionId);
+            $this->react($model, $blueprint, $transitionName, [$from], $result->marking, $versionId, $runId);
         }
 
         return $result;
+    }
+
+    /**
+     * React to an applied transition: fire the structured {@see WorkflowTransitioned} event (for code
+     * listeners) and run the transition's named EFFECTS (the notifier catalog). Reactions are
+     * fire-and-forget — an effect that throws is isolated so it can never roll back the Control change
+     * that already committed.
+     *
+     * @param  list<string>  $from
+     * @param  list<string>  $to
+     */
+    protected function react(Model $model, WorkflowBlueprint $blueprint, string $transitionName, array $from, array $to, ?string $versionId, ?string $runId): void
+    {
+        $event = new WorkflowTransitioned($model, $transitionName, $from, $to, $versionId, $runId);
+
+        $this->events->dispatch($event);
+
+        foreach ($blueprint->transitions as $transition) {
+            if ($transition->name !== $transitionName) {
+                continue;
+            }
+
+            foreach ($transition->effects as $ref) {
+                if (! $this->effects->has($ref)) {
+                    continue;
+                }
+
+                try {
+                    ($this->effects->get($ref))($event, $transition->effectParams($ref));
+                } catch (\Throwable $e) {
+                    report($e); // Display-side, lossy-OK: never break the committed transition.
+                }
+            }
+        }
     }
 
     /**

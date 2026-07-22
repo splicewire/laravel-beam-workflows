@@ -13,6 +13,7 @@ use Splicewire\Beam\Workflows\Bridge\WorkflowFactory;
 use Splicewire\Beam\Workflows\Control\GuardRegistry;
 use Splicewire\Beam\Workflows\Control\LifecycleService;
 use Splicewire\Beam\Workflows\Control\SubjectResolverRegistry;
+use Splicewire\Beam\Workflows\Control\TransitionEffectRegistry;
 use Splicewire\Beam\Workflows\Control\WorkflowActuator;
 use Splicewire\Beam\Workflows\Control\WorkflowApplyInvocable;
 use Splicewire\Beam\Workflows\Control\WorkflowRegistry;
@@ -95,10 +96,15 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
         $this->app->singleton(GuardRegistry::class);
         $this->app->singleton(WorkflowRegistry::class);
 
-        // Blueprint validator (ticket 05): referential integrity + guard-catalog membership. The
-        // save path (editor, ticket 08) runs this before a version is written — the code-only line.
+        // Effect catalog (v2 notifications): the notifier side of the guard pattern — a transition
+        // references effects by name that run after it applies (a notification, a webhook).
+        $this->app->singleton(TransitionEffectRegistry::class);
+
+        // Blueprint validator (ticket 05): referential integrity + guard- AND effect-catalog
+        // membership. The save path (editor, ticket 08) runs this before a version is written.
         $this->app->singleton(BlueprintValidator::class, fn ($app) => new BlueprintValidator(
             $app->make(GuardRegistry::class),
+            $app->make(TransitionEffectRegistry::class),
         ));
 
         // The model-agnostic workflow-admin behaviour (the seam pass): catalog / lineage reads /
@@ -110,6 +116,7 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
             $app->make(WorkflowBindingRegistry::class),
             $app->make(BlueprintValidator::class),
             $app->make(WorkflowTypeRegistry::class),
+            $app->make(TransitionEffectRegistry::class),
         ));
 
         $this->app->singleton(WorkflowRunner::class, fn ($app) => new WorkflowRunner(
@@ -127,6 +134,8 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
             $app->make(DefinitionStore::class),
             $app->make(WorkflowRegistry::class),
             $app->make(WorkflowRunner::class),
+            $app->make(TransitionEffectRegistry::class),
+            $app->make('events'),
         ));
 
         // Generic actuation seam (beam-workflows v2): the SubjectResolverRegistry maps a `kind` slug

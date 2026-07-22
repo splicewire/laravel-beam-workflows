@@ -7,6 +7,7 @@ use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
 use Splicewire\Beam\Workflows\Blueprint\BlueprintValidator;
 use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
 use Splicewire\Beam\Workflows\Control\GuardRegistry;
+use Splicewire\Beam\Workflows\Control\TransitionEffectRegistry;
 use Splicewire\Beam\Workflows\Definition\DefinitionStore;
 use Splicewire\Beam\Workflows\Definition\WorkflowDefinitionLineage;
 use Splicewire\Beam\Workflows\Definition\WorkflowDefinitionVersion;
@@ -34,6 +35,7 @@ class WorkflowAdmin
         protected WorkflowBindingRegistry $bindings,
         protected BlueprintValidator $validator,
         protected WorkflowTypeRegistry $types,
+        protected TransitionEffectRegistry $effects,
     ) {}
 
     /**
@@ -41,7 +43,7 @@ class WorkflowAdmin
      * options (registered types, then any host-supplied types, then already-bound types — first
      * write wins, so nothing is orphaned or duplicated).
      *
-     * @return array{blueprintSchema: array<string, mixed>, guards: list<array{name: string, label: string, paramsSchema: array<string, mixed>}>, types: list<array{key: string, label: string}>}
+     * @return array{blueprintSchema: array<string, mixed>, guards: list<array{name: string, label: string, paramsSchema: array<string, mixed>}>, effects: list<array{name: string, label: string, paramsSchema: array<string, mixed>}>, types: list<array{key: string, label: string}>}
      */
     public function catalog(?GovernableTypeSource $source = null): array
     {
@@ -59,6 +61,7 @@ class WorkflowAdmin
         return [
             'blueprintSchema' => WorkflowBlueprint::jsonSchema(),
             'guards' => $this->guards->guardCatalog(),
+            'effects' => $this->effects->effectCatalog(),
             'types' => array_values($options),
         ];
     }
