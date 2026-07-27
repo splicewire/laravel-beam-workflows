@@ -60,20 +60,28 @@ class StatusEmitter
             $properties[$actorKey] = $actor;
         }
 
-        $logger = activity($logName)
-            ->event($event->state->value)
-            ->withProperties($properties)
-            // The status log's "who" is the opaque actor token in properties, never spatie's
-            // auto-`Auth::user()` causer — the engine is opaque to identity (ticket 05). Suppress the
-            // auto-causer so there is exactly one canonical representation of who drove the move.
-            ->causedByAnonymous()
-            ->createdAt($event->at());
+        // Tenancy-awareness (Seam A): a subject whose status must land somewhere other than the
+        // default (tenant-swapped) `activity_log` — e.g. a central-connection audit model so a
+        // central subject's status is readable where the host reads it — maps its class to its own
+        // Activity model. spatie resolves the model from `activitylog.activity_model` at log time,
+        // so we scope-swap that config around the emit (config-cache safe: a class-string map, no
+        // closures) and restore it after, leaving the host's ambient config untouched.
+        $activity = $this->usingActivityModel($this->resolveActivityModel($subject), function () use ($logName, $event, $properties, $subject) {
+            $logger = activity($logName)
+                ->event($event->state->value)
+                ->withProperties($properties)
+                // The status log's "who" is the opaque actor token in properties, never spatie's
+                // auto-`Auth::user()` causer — the engine is opaque to identity (ticket 05). Suppress the
+                // auto-causer so there is exactly one canonical representation of who drove the move.
+                ->causedByAnonymous()
+                ->createdAt($event->at());
 
-        if ($subject !== null) {
-            $logger->performedOn($subject);
-        }
+            if ($subject !== null) {
+                $logger->performedOn($subject);
+            }
 
-        $activity = $logger->log($event->message ?? $event->state->value);
+            return $logger->log($event->message ?? $event->state->value);
+        });
 
         // The single broadcast/SSE seam that ends the UI's poll loops. Dispatched always (so
         // in-process listeners + tests observe it); only reaches a broadcaster when enabled.
@@ -86,5 +94,50 @@ class StatusEmitter
         ));
 
         return $activity;
+    }
+
+    /**
+     * Resolve the Activity model a subject's status should be written to. `beam-workflows.activity_models`
+     * is a `subject-class => activity-model-class` map (matched by `instanceof`, so a subclass or
+     * interface key works); `beam-workflows.activity_model` is a global default. Null = spatie's own
+     * configured default (the tenant-swapped `activity_log`), i.e. no swap.
+     */
+    protected function resolveActivityModel(?Model $subject): ?string
+    {
+        if ($subject !== null) {
+            $map = $this->config->get('beam-workflows.activity_models', []);
+            foreach ($map as $subjectClass => $activityModel) {
+                if ($subject instanceof $subjectClass) {
+                    return $activityModel;
+                }
+            }
+        }
+
+        return $this->config->get('beam-workflows.activity_model');
+    }
+
+    /**
+     * Run the emit with `activitylog.activity_model` scope-swapped to `$model`, restoring the ambient
+     * value afterward. A null model means "no swap" — spatie uses the host's configured default.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $emit
+     * @return T
+     */
+    protected function usingActivityModel(?string $model, callable $emit): mixed
+    {
+        if ($model === null) {
+            return $emit();
+        }
+
+        $previous = $this->config->get('activitylog.activity_model');
+        $this->config->set('activitylog.activity_model', $model);
+
+        try {
+            return $emit();
+        } finally {
+            $this->config->set('activitylog.activity_model', $previous);
+        }
     }
 }

@@ -15,6 +15,34 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Activity model resolution — tenancy / connection awareness
+    |--------------------------------------------------------------------------
+    |
+    | spatie/laravel-activitylog resolves the Activity model (hence table +
+    | connection) from `activitylog.activity_model` — the DEFAULT one lands on
+    | the framework's default connection, which a multi-tenancy layer swaps
+    | per-tenant. That is correct for an in-tenant subject, but WRONG for a
+    | central subject whose status must be readable centrally (e.g. tenant
+    | provisioning: the operator reads it outside any tenant boundary, and the
+    | first events fire before the tenant schema even exists).
+    |
+    | `activity_models` maps a subject class to the Activity model its status
+    | should be written to (matched by `instanceof`, so a base class or contract
+    | key works). `activity_model` is a global default override. Both null/empty =
+    | spatie's own configured model (no change). A class-string map — no closures —
+    | so it stays config-cache safe.
+    |
+    |   'activity_models' => [
+    |       App\Models\Tenant::class => App\Models\CentralActivityLog::class,
+    |   ],
+    |
+    */
+    'activity_models' => [],
+
+    'activity_model' => null,
+
+    /*
+    |--------------------------------------------------------------------------
     | Run-grouping key
     |--------------------------------------------------------------------------
     |
