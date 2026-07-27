@@ -6,10 +6,10 @@ use Splicewire\Beam\Workflows\Control\GuardRegistry;
 use Splicewire\Beam\Workflows\Control\WorkflowApplyInvocable;
 use Splicewire\Beam\Workflows\Control\WorkflowRegistry;
 use Splicewire\CircuitEngine\Dispatch\CapabilityDispatcher;
-use Splicewire\CircuitSpineData\Context\RunContext;
-use Splicewire\CircuitSpineData\Graph\Node;
-use Splicewire\CircuitSpineData\Ports\Envelope;
-use Splicewire\CircuitSpineData\Ports\Port;
+use Splicewire\Circuit\Context\RunContext;
+use Splicewire\Circuit\Graph\Node;
+use Splicewire\Circuit\Ports\Envelope;
+use Splicewire\Circuit\Ports\Port;
 
 /*
  * Seam B behavioral tests — run a state-machine node through the kernel's REAL capability-dispatch
