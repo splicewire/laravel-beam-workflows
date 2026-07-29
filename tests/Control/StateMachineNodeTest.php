@@ -5,11 +5,11 @@ use Spatie\Activitylog\Models\Activity;
 use Splicewire\Beam\Workflows\Control\GuardRegistry;
 use Splicewire\Beam\Workflows\Control\WorkflowApplyInvocable;
 use Splicewire\Beam\Workflows\Control\WorkflowRegistry;
-use Splicewire\CircuitEngine\Dispatch\CapabilityDispatcher;
-use Splicewire\Circuit\Context\RunContext;
-use Splicewire\Circuit\Graph\Node;
-use Splicewire\Circuit\Ports\Envelope;
-use Splicewire\Circuit\Ports\Port;
+use Splicewire\Circuits\Dispatch\CapabilityDispatcher;
+use Splicewire\Circuits\Context\RunContext;
+use Splicewire\Circuits\Graph\Node;
+use Splicewire\Circuits\Ports\Envelope;
+use Splicewire\Circuits\Ports\Port;
 
 /*
  * Seam B behavioral tests — run a state-machine node through the kernel's REAL capability-dispatch

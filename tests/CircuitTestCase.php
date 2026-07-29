@@ -2,7 +2,7 @@
 
 namespace Splicewire\Beam\Workflows\Tests;
 
-use Splicewire\CircuitEngine\CircuitEngineServiceProvider;
+use Splicewire\Circuits\CircuitEngineServiceProvider;
 
 /**
  * The Seam B test harness: the base substrate PLUS the real Circuit kernel, so a state-machine
