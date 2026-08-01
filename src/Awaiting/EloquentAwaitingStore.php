@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Str;
 use Splicewire\Beam\Workflows\Awaiting\Contracts\AwaitingStore;
+use Splicewire\Beam\Workflows\Awaiting\Events\WorkflowAwaitingStamped;
 
 /**
  * The default Eloquent implementation of the opaque {@see AwaitingStore} contract
@@ -22,7 +23,7 @@ class EloquentAwaitingStore implements AwaitingStore
     {
         // insertOrIgnore on the unique (subject, place, principal) key: idempotent at the DB level, so a
         // repeat enter keeps the first `created_at` and never throws on the duplicate.
-        WorkflowAwaiting::query()->insertOrIgnore([
+        $inserted = WorkflowAwaiting::query()->insertOrIgnore([
             'id' => (string) Str::uuid(),
             'subject_type' => $subject->getMorphClass(),
             'subject_id' => $subject->getKey(),
@@ -32,6 +33,12 @@ class EloquentAwaitingStore implements AwaitingStore
             'parent_id' => $parentId,
             'created_at' => Date::now(),
         ]);
+
+        // Fire ONLY when a row actually landed (insertOrIgnore returns 0 on the skipped re-enter), so a
+        // host signal — a review-inbox refresh, a notification — fires once per genuinely-new awaiting.
+        if ($inserted > 0) {
+            WorkflowAwaitingStamped::dispatch($subject, $place, $principal, $parentType, $parentId);
+        }
     }
 
     public function clearForPlaces(Model $subject, array $places): void
