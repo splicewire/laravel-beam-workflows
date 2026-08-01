@@ -45,8 +45,8 @@ class FakeManagedBatch implements WorkflowManaged
     }
 }
 
-/** A schema-shaped record reaching the resolver through the second door. */
-class FakeSchemaRecord implements HasSchemaType
+/** A schema-shaped particle reaching the resolver through the second door. */
+class FakeParticle implements HasSchemaType
 {
     public function __construct(private ?string $type) {}
 
@@ -99,13 +99,13 @@ it('projects a schema record through the second door only when a mapping exists'
     $resolver = app(TypeIdentityResolver::class);
 
     // Mapped schema type → the shared workflow key namespace.
-    expect($resolver->forObject(new FakeSchemaRecord('article')))->toBe('composition');
+    expect($resolver->forObject(new FakeParticle('article')))->toBe('composition');
 
     // An unmapped schema type is unmanaged by default (the door is built, not opened).
-    expect($resolver->forObject(new FakeSchemaRecord('unmapped-thing')))->toBeNull();
+    expect($resolver->forObject(new FakeParticle('unmapped-thing')))->toBeNull();
 
     // A record carrying no schema type is unmanaged.
-    expect($resolver->forObject(new FakeSchemaRecord(null)))->toBeNull();
+    expect($resolver->forObject(new FakeParticle(null)))->toBeNull();
 });
 
 it('treats a blank type key as unmanaged', function () {
