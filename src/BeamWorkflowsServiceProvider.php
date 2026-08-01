@@ -10,6 +10,7 @@ use Splicewire\Beam\Workflows\Awaiting\AwaitEffect;
 use Splicewire\Beam\Workflows\Awaiting\ClearAwaitingsOnTransition;
 use Splicewire\Beam\Workflows\Awaiting\Contracts\AwaitingStore;
 use Splicewire\Beam\Workflows\Awaiting\Contracts\WorkflowNotifier;
+use Splicewire\Beam\Workflows\Awaiting\EloquentAwaitingStore;
 use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
 use Splicewire\Beam\Workflows\Blueprint\BlueprintValidator;
 use Splicewire\Beam\Workflows\Bridge\DefinitionBuilder;
@@ -59,6 +60,13 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
         $this->app->singleton(WorkflowFactory::class, fn () => new WorkflowFactory);
 
         $this->app->singleton(DefinitionBuilder::class, fn () => new DefinitionBuilder);
+
+        // Default awaiting store (ticket 12). The Eloquent projection over the tenant
+        // `workflow_awaitings` table is fully generic (identity-blind, opaque principals), so the
+        // package ships it as the sensible default via `bindIf` — a host that needs a different store
+        // (a non-Eloquent projection, a differently-tabled one) still overrides. The `WorkflowNotifier`
+        // stays deliberately unbound: it is the single identity-touching seam and MUST be host-supplied.
+        $this->app->bindIf(AwaitingStore::class, EloquentAwaitingStore::class, shared: true);
 
         $this->app->singleton(StatusEmitter::class, fn ($app) => new StatusEmitter(
             $app['config'],
