@@ -16,7 +16,7 @@ namespace Splicewire\Beam\Workflows\Migration;
  *   - `unmappable`   the blockers: `{id, place}` for every object whose current place has no mapping
  *                    to the target version. Non-empty ⇒ the run aborted, `applied` is false.
  */
-readonly class MigrationReport
+class MigrationReport
 {
     /**
      * @param  list<array{id: string, place: string}>  $unmappable

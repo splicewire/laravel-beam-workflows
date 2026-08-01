@@ -30,11 +30,11 @@ class StatusEmitted implements ShouldBroadcast
     use SerializesModels;
 
     public function __construct(
-        public readonly ?Model $subject,
-        public readonly StatusEvent $status,
-        public readonly ?string $runId = null,
-        public readonly ?int $activityId = null,
-        public readonly ?string $actor = null,
+        public ?Model $subject,
+        public StatusEvent $status,
+        public ?string $runId = null,
+        public ?int $activityId = null,
+        public ?string $actor = null,
     ) {}
 
     public function broadcastWhen(): bool

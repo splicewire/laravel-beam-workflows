@@ -16,7 +16,7 @@ namespace Splicewire\Beam\Workflows\Binding;
  *                  `require_review` env flag, which stops being a special case and becomes one
  *                  parameter among many.
  */
-readonly class Binding
+class Binding
 {
     /**
      * @param  array<string, mixed>  $params

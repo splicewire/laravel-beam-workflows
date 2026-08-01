@@ -18,7 +18,7 @@ use InvalidArgumentException;
  * names an effect, never carries its logic. Author-set effect params ride `metadata.effect_params`
  * keyed by effect name.
  */
-readonly class TransitionBlueprint
+class TransitionBlueprint
 {
     /**
      * @param  list<string>  $from

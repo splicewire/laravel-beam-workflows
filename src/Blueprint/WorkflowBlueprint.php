@@ -17,7 +17,7 @@ use Splicewire\Beam\Workflows\Bridge\DefinitionBuilder;
  * multi-place workflow-net, not a DAG, and is not drawn on the Circuit canvas. This class makes
  * definitions data-shaped; it ships NO editor UI — it unblocks one.
  */
-readonly class WorkflowBlueprint
+class WorkflowBlueprint
 {
     /**
      * @param  list<string>  $places

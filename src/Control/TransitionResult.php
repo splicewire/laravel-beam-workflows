@@ -9,7 +9,7 @@ namespace Splicewire\Beam\Workflows\Control;
  * node's output port and the Seam C lifecycle return, so a caller branches on `applied` without
  * catching exceptions.
  */
-readonly class TransitionResult
+class TransitionResult
 {
     /**
      * @param  list<string>  $marking

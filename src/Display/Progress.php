@@ -9,7 +9,7 @@ namespace Splicewire\Beam\Workflows\Display;
  * simply omits progress entirely (a null `progress` on the event). This is why it is a separate,
  * nullable value object rather than two nullable columns on the event.
  */
-readonly class Progress
+class Progress
 {
     public function __construct(
         public int $done,

@@ -19,7 +19,7 @@ use Splicewire\Beam\Workflows\Display\Events\StatusEmitted;
  * @property list<string> $from
  * @property list<string> $to
  */
-readonly class WorkflowTransitioned
+class WorkflowTransitioned
 {
     /**
      * @param  list<string>  $from  Places the marking left.

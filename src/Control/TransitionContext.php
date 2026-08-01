@@ -20,7 +20,7 @@ use Splicewire\Beam\Workflows\Display\StatusEvent;
  * {@see LifecycleService::transition()} (pre-1.0 co-dev, no external consumers): the actor rides
  * alongside the run id in one value object instead of a growing positional param list.
  */
-readonly class TransitionContext
+class TransitionContext
 {
     public function __construct(
         public ?string $actor = null,

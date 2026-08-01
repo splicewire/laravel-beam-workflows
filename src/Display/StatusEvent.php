@@ -21,7 +21,7 @@ use Illuminate\Support\Carbon;
  * The load-bearing invariant: producers EMIT this; they never store status INTO the artifact they
  * are generating. The event is projected onto the activity-log timeline by {@see StatusEmitter}.
  */
-readonly class StatusEvent
+class StatusEvent
 {
     public function __construct(
         public State $state,
