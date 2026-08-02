@@ -55,7 +55,7 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/beam-workflows.php', 'beam-workflows');
+        $this->mergeConfigFrom(__DIR__.'/../config/beam/workflows.php', 'beam.workflows');
 
         $this->app->singleton(WorkflowFactory::class, fn () => new WorkflowFactory);
 
@@ -161,7 +161,7 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
         ));
 
         $this->app->singleton(WorkflowApplyInvocable::class, fn ($app) => new WorkflowApplyInvocable(
-            (string) config('beam-workflows.node_capability', 'workflow.apply'),
+            (string) config('beam.workflows.node_capability', 'workflow.apply'),
             $app->make(WorkflowRunner::class),
             $app->make(WorkflowRegistry::class),
         ));
@@ -171,7 +171,7 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                __DIR__.'/../config/beam-workflows.php' => $this->app->configPath('beam-workflows.php'),
+                __DIR__.'/../config/beam/workflows.php' => $this->app->configPath('beam/workflows.php'),
             ], 'beam-workflows-config');
         }
 

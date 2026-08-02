@@ -19,7 +19,7 @@ use Splicewire\Beam\Workflows\Display\StatusEvent;
  * drop it, replay it, or reshape it without any risk to execution correctness, because Control
  * lives in the process's own marking store, never in this event.
  *
- * Broadcasting is gated on `beam-workflows.broadcast` so the package is inert (dispatch-only, no
+ * Broadcasting is gated on `beam.workflows.broadcast` so the package is inert (dispatch-only, no
  * transport) until a host opts in and configures a broadcaster. The event is always *dispatched*
  * (so in-process listeners and tests observe it); it only reaches the broadcaster when enabled.
  */
@@ -39,7 +39,7 @@ class StatusEmitted implements ShouldBroadcast
 
     public function broadcastWhen(): bool
     {
-        return (bool) config('beam-workflows.broadcast', false);
+        return (bool) config('beam.workflows.broadcast', false);
     }
 
     /**

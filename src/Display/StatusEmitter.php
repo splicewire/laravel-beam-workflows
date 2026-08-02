@@ -14,7 +14,7 @@ use Splicewire\Beam\Workflows\Display\Events\StatusEmitted;
  * they never write status into the artifact they are generating (the load-bearing invariant).
  *
  * Column mapping onto activitylog (v5):
- *   - `log_name`    = the stable `status` channel (config `beam-workflows.status_log_name`)
+ *   - `log_name`    = the stable `status` channel (config `beam.workflows.status_log_name`)
  *   - `description` = the event `message`
  *   - `event`       = the `state` value (indexed, for `where('event', 'complete')`-style queries)
  *   - `properties`  = { ref, state, progress, run_id, actor }
@@ -48,9 +48,9 @@ class StatusEmitter
      */
     public function emit(?Model $subject, StatusEvent $event, ?string $runId = null, ?string $actor = null): ?Activity
     {
-        $logName = $this->config->get('beam-workflows.status_log_name', 'status');
-        $runIdKey = $this->config->get('beam-workflows.run_id_key', 'run_id');
-        $actorKey = $this->config->get('beam-workflows.actor_key', 'actor');
+        $logName = $this->config->get('beam.workflows.status_log_name', 'status');
+        $runIdKey = $this->config->get('beam.workflows.run_id_key', 'run_id');
+        $actorKey = $this->config->get('beam.workflows.actor_key', 'actor');
 
         $properties = $event->properties();
         if ($runId !== null) {
@@ -97,15 +97,15 @@ class StatusEmitter
     }
 
     /**
-     * Resolve the Activity model a subject's status should be written to. `beam-workflows.activity_models`
+     * Resolve the Activity model a subject's status should be written to. `beam.workflows.activity_models`
      * is a `subject-class => activity-model-class` map (matched by `instanceof`, so a subclass or
-     * interface key works); `beam-workflows.activity_model` is a global default. Null = spatie's own
+     * interface key works); `beam.workflows.activity_model` is a global default. Null = spatie's own
      * configured default (the tenant-swapped `activity_log`), i.e. no swap.
      */
     protected function resolveActivityModel(?Model $subject): ?string
     {
         if ($subject !== null) {
-            $map = $this->config->get('beam-workflows.activity_models', []);
+            $map = $this->config->get('beam.workflows.activity_models', []);
             foreach ($map as $subjectClass => $activityModel) {
                 if ($subject instanceof $subjectClass) {
                     return $activityModel;
@@ -113,7 +113,7 @@ class StatusEmitter
             }
         }
 
-        return $this->config->get('beam-workflows.activity_model');
+        return $this->config->get('beam.workflows.activity_model');
     }
 
     /**
