@@ -202,8 +202,40 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
             ], 'beam-workflows-config');
         }
 
+        $this->bootMigrations();
         $this->registerStateMachineNode();
         $this->registerAwaitingSeam();
+    }
+
+    /**
+     * Home the workflow tenant migrations in this package so it self-provisions (recohere C12).
+     *
+     * TENANT-ONLY. The definition-store, bindings, and awaitings tables are per-tenant workflow
+     * data, so there is NO central {@see loadMigrationsFrom()} — adding one would wrongly create
+     * these tables in the central schema. Stancl tenancy has no auto-discovery for tenant
+     * migrations; `tenants:migrate` reads the ARRAY at `config('tenancy.migration_parameters.--path')`
+     * at runtime, so we push this package's `database/migrations/tenant` dir onto it
+     * (install-location-agnostic, idempotent). Boot runs at app-bootstrap, well before the command
+     * reads config, so ordering holds. Mirrors the tenant half of
+     * {@see \Splicewire\Tower\TowerServiceProvider::bootMigrations()}.
+     *
+     * Gated by `config('beam.workflows.register_migrations', true)` — defaults on, matching the
+     * tower/beam-accounts exemplar's opt-out shape.
+     */
+    protected function bootMigrations(): void
+    {
+        if (! config('beam.workflows.register_migrations', true)) {
+            return;
+        }
+
+        $tenantDir = realpath(__DIR__.'/../database/migrations/tenant')
+            ?: __DIR__.'/../database/migrations/tenant';
+
+        $paths = config('tenancy.migration_parameters.--path', []);
+
+        if (! in_array($tenantDir, $paths, true)) {
+            config()->push('tenancy.migration_parameters.--path', $tenantDir);
+        }
     }
 
     /**

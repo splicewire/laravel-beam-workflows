@@ -94,4 +94,20 @@ return [
     */
     'node_capability' => 'workflow.apply',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Register migrations — self-provision the tenant workflow tables
+    |--------------------------------------------------------------------------
+    |
+    | The versioned definition store, bindings, and awaitings tables are
+    | TENANT-scoped (they hold per-tenant workflow data). This package ships
+    | those migrations under `database/migrations/tenant` and, when this is on,
+    | pushes that dir onto Stancl tenancy's `--path` array at boot so tenant
+    | provisioning runs them from the package — no host-side copy. Tenant-only:
+    | there is deliberately no central `loadMigrationsFrom`, since these tables
+    | must never be created in the central schema. Opt out to home them yourself.
+    |
+    */
+    'register_migrations' => true,
+
 ];
