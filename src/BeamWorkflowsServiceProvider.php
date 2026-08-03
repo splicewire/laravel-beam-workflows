@@ -53,8 +53,35 @@ use Splicewire\Beam\Workflows\Type\WorkflowTypeRegistry;
  */
 class BeamWorkflowsServiceProvider extends ServiceProvider
 {
+    /**
+     * Back-compat aliases for the 10 Workflow* editor/binding DTOs that moved DOWN from
+     * `Splicewire\Tower\Data\*` into this package (recohere Lane A cluster 1). A straggler
+     * safety-net: any consumer still typing the old tower FQCN keeps resolving for one release.
+     */
+    private const BACK_COMPAT_DATA = [
+        'WorkflowBlueprintData',
+        'WorkflowTransitionData',
+        'WorkflowCatalogData',
+        'WorkflowBindingData',
+        'WorkflowCoverageData',
+        'WorkflowCoverageVersionData',
+        'WorkflowLineageData',
+        'WorkflowProjectionData',
+        'WorkflowTypeOptionData',
+        'WorkflowVersionData',
+    ];
+
     public function register(): void
     {
+        foreach (self::BACK_COMPAT_DATA as $class) {
+            $old = 'Splicewire\\Tower\\Data\\'.$class;
+            $new = 'Splicewire\\Beam\\Workflows\\Data\\'.$class;
+
+            if (! class_exists($old, false)) {
+                class_alias($new, $old);
+            }
+        }
+
         $this->mergeConfigFrom(__DIR__.'/../config/beam/workflows.php', 'beam.workflows');
 
         $this->app->singleton(WorkflowFactory::class, fn () => new WorkflowFactory);
