@@ -47,9 +47,10 @@ use Splicewire\Beam\Workflows\Type\WorkflowTypeRegistry;
  * persistence" contract). Each state machine passes its own event dispatcher at build time so
  * guard/transition listeners never leak across definitions.
  *
- * boot(): publish config. The Control-seam node registration is additive and guarded on the
- * circuit-engine being present, so a host that only wants the Display substrate boots cleanly
- * with no Circuit dependency.
+ * boot(): publish config + the tenant migrations (PUBLISH-ONLY, via Laravel-native
+ * publishesMigrations — this is a plain provider with no package-tools machinery). The Control-seam
+ * node registration is additive and guarded on the circuit-engine being present, so a host that only
+ * wants the Display substrate boots cleanly with no Circuit dependency.
  */
 class BeamWorkflowsServiceProvider extends ServiceProvider
 {
@@ -200,42 +201,41 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__.'/../config/beam/workflows.php' => $this->app->configPath('beam/workflows.php'),
             ], 'beam-workflows-config');
+
+            $this->bootMigrations();
         }
 
-        $this->bootMigrations();
         $this->registerStateMachineNode();
         $this->registerAwaitingSeam();
     }
 
     /**
-     * Home the workflow tenant migrations in this package so it self-provisions (recohere C12).
+     * PUBLISH-ONLY tenant migrations — the idiomatic pattern for a PLAIN ServiceProvider, mirroring
+     * the beam-core PackageServiceProvider exemplar (undo of the recohere runtime `--path` push).
      *
-     * TENANT-ONLY. The definition-store, bindings, and awaitings tables are per-tenant workflow
-     * data, so there is NO central {@see loadMigrationsFrom()} — adding one would wrongly create
-     * these tables in the central schema. Stancl tenancy has no auto-discovery for tenant
-     * migrations; `tenants:migrate` reads the ARRAY at `config('tenancy.migration_parameters.--path')`
-     * at runtime, so we push this package's `database/migrations/tenant` dir onto it
-     * (install-location-agnostic, idempotent). Boot runs at app-bootstrap, well before the command
-     * reads config, so ordering holds. Mirrors the tenant half of
-     * {@see \Splicewire\Tower\TowerServiceProvider::bootMigrations()}.
+     * A plain provider has no spatie/laravel-package-tools machinery, so this uses Laravel's native
+     * {@see ServiceProvider::publishesMigrations()} (Laravel 11+). It does NOT loadMigrationsFrom and
+     * does NOT push onto `tenancy.migration_parameters.--path`: the package never runs these at
+     * runtime. `vendor:publish --tag=beam-workflows-migrations` drops the copies into the HOST's
+     * `database/migrations/tenant/`, and the host's Stancl tenant pass runs them.
      *
-     * Gated by `config('beam.workflows.register_migrations', true)` — defaults on, matching the
-     * tower/beam-accounts exemplar's opt-out shape.
+     * TENANT-ONLY. The definition-store, bindings, and awaitings tables are per-tenant workflow data,
+     * so they publish ONLY into `database/migrations/tenant/` — there is NO flat/central twin, and no
+     * `Schema::hasTable()` dup-guard (that guard exists only for a ubiquitous table's tenant twin in a
+     * host that migrates both passes into one schema; these tables have no central pass to collide
+     * with).
+     *
+     * The publishable source files carry their own valid timestamp prefix and ship as plain `.php`.
+     * With `database.migrations.update_date_on_publish` at its default (false), native
+     * `publishesMigrations` copies each file verbatim — one correctly-timestamped migration per table,
+     * no double-stamp. These are leaf tables (no external migration references them), so the frozen
+     * timestamps order correctly against the rest of the tenant stack.
      */
     protected function bootMigrations(): void
     {
-        if (! config('beam.workflows.register_migrations', true)) {
-            return;
-        }
-
-        $tenantDir = realpath(__DIR__.'/../database/migrations/tenant')
-            ?: __DIR__.'/../database/migrations/tenant';
-
-        $paths = config('tenancy.migration_parameters.--path', []);
-
-        if (! in_array($tenantDir, $paths, true)) {
-            config()->push('tenancy.migration_parameters.--path', $tenantDir);
-        }
+        $this->publishesMigrations([
+            __DIR__.'/../database/migrations/tenant' => $this->app->databasePath('migrations/tenant'),
+        ], 'beam-workflows-migrations');
     }
 
     /**
