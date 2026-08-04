@@ -32,7 +32,7 @@
         "pestphp/pest": "^2.0|^3.0",
         "rushing/laravel-popcorn": "@dev",
         "splicewire/laravel-circuit-engine": "@dev",
-        "splicewire/laravel-circuit-spine-data": "@dev"
+        "splicewire/laravel-circuit-spine": "@dev"
     },
     "suggest": {
         "splicewire/laravel-circuit-engine": "Enables the state-machine Circuit node type (Seam B): the local `workflow.apply` capability registers into the kernel's CapabilityManifest so a state machine slots into a Circuit graph. Without it, the Display substrate (Seam A) and the DefinitionBuilder still work standalone."
