@@ -5,6 +5,10 @@ namespace Splicewire\Beam\Workflows;
 use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
 use Rushing\Popcorn\InvocableRegistry;
+use Splicewire\Beam\Manifest\ManifestArity;
+use Splicewire\Beam\Manifest\ManifestDescriptor;
+use Splicewire\Beam\Manifest\ManifestIndex;
+use Splicewire\Beam\Manifest\ManifestSeam;
 use Splicewire\Beam\Workflows\Admin\WorkflowAdmin;
 use Splicewire\Beam\Workflows\Awaiting\AwaitEffect;
 use Splicewire\Beam\Workflows\Awaiting\ClearAwaitingsOnTransition;
@@ -54,35 +58,8 @@ use Splicewire\Beam\Workflows\Type\WorkflowTypeRegistry;
  */
 class BeamWorkflowsServiceProvider extends ServiceProvider
 {
-    /**
-     * Back-compat aliases for the 10 Workflow* editor/binding DTOs that moved DOWN from
-     * `Splicewire\Tower\Data\*` into this package (recohere Lane A cluster 1). A straggler
-     * safety-net: any consumer still typing the old tower FQCN keeps resolving for one release.
-     */
-    private const BACK_COMPAT_DATA = [
-        'WorkflowBlueprintData',
-        'WorkflowTransitionData',
-        'WorkflowCatalogData',
-        'WorkflowBindingData',
-        'WorkflowCoverageData',
-        'WorkflowCoverageVersionData',
-        'WorkflowLineageData',
-        'WorkflowProjectionData',
-        'WorkflowTypeOptionData',
-        'WorkflowVersionData',
-    ];
-
     public function register(): void
     {
-        foreach (self::BACK_COMPAT_DATA as $class) {
-            $old = 'Splicewire\\Tower\\Data\\'.$class;
-            $new = 'Splicewire\\Beam\\Workflows\\Data\\'.$class;
-
-            if (! class_exists($old, false)) {
-                class_alias($new, $old);
-            }
-        }
-
         $this->mergeConfigFrom(__DIR__.'/../config/beam/workflows.php', 'beam.workflows');
 
         $this->app->singleton(WorkflowFactory::class, fn () => new WorkflowFactory);
@@ -207,6 +184,45 @@ class BeamWorkflowsServiceProvider extends ServiceProvider
 
         $this->registerStateMachineNode();
         $this->registerAwaitingSeam();
+        $this->describeWorkflowManifests();
+    }
+
+    /**
+     * Describe this package's workflow registries into the index of indexes (beam-manifest-index). Owner
+     * self-registration, down into beam-core's {@see ManifestIndex} — the same direction as the install /
+     * doctor manifests, and topology-safe (beam-workflows depends DOWN on laravel-beam). Note the axes
+     * diverge within one seam: every registry here is a singleton-accumulator, but WorkflowTypeRegistry
+     * reads RUN-ALL (the dropdown enumeration) while the rest resolve PICK-ONE by key.
+     */
+    private function describeWorkflowManifests(): void
+    {
+        $index = $this->app->make(ManifestIndex::class);
+        $pkg = 'splicewire/laravel-beam-workflows';
+
+        foreach ([
+            ['WorkflowRegistry', 'named workflow blueprints (state machines), resolved by name', ManifestArity::PickOne,
+                'resolve the singleton and register(name, WorkflowBlueprint|array) from your provider', WorkflowRegistry::class, 30],
+            ['WorkflowTypeRegistry', 'governable workflow types (key + label) for the admin dropdown', ManifestArity::RunAll,
+                'resolve the singleton and register(key, ?label) from your provider', WorkflowTypeRegistry::class, 31],
+            ['WorkflowBindingRegistry', 'typeKey → Binding mappings (presence IS the enable), resolved by type', ManifestArity::PickOne,
+                'resolve the singleton and bind(typeKey, lineageRef, params) from your provider', WorkflowBindingRegistry::class, 32],
+            ['GuardRegistry', 'transition guard callables by reference, with editor-menu catalog entries', ManifestArity::PickOne,
+                'resolve the singleton and register(ref, callable, ?label, paramsSchema) from your provider', GuardRegistry::class, 33],
+            ['TransitionEffectRegistry', 'post-transition effect callables by reference, with catalog entries', ManifestArity::PickOne,
+                'resolve the singleton and register(ref, callable, ?label, paramsSchema) from your provider', TransitionEffectRegistry::class, 34],
+            ['SubjectResolverRegistry', 'subject finders by kind slug (id → model) for generic actuation', ManifestArity::PickOne,
+                'resolve the singleton and register(kind, fn($id) => ?Model) from your provider', SubjectResolverRegistry::class, 35],
+        ] as [$name, $of, $arity, $hint, $where, $order]) {
+            $index->describe(new ManifestDescriptor(
+                name: $name,
+                of: $of,
+                seam: ManifestSeam::SingletonAccumulator,
+                arity: $arity,
+                registerHint: $hint,
+                where: $where,
+                package: $pkg, order: $order,
+            ));
+        }
     }
 
     /**
