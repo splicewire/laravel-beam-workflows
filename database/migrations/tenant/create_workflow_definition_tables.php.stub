@@ -17,6 +17,11 @@ use Illuminate\Support\Facades\Schema;
  *
  * These mirror the shape the package's DefinitionStore writes to (Splicewire\Beam\Workflows\
  * Definition\*); the stack-specific DDL lives here in the child, per the runbook seam.
+ *
+ * Shipped as a publish-only spatie/laravel-package-tools stub (`runsMigrations` FALSE): the package
+ * publishes this timestamp-less `.php.stub` via `configurePackage()`'s `->hasMigrations([...])`
+ * (`vendor:publish --tag=beam-workflows-migrations`), which re-stamps + sequences it into the host at
+ * install time. beam-workflows never `loadMigrationsFrom`'s it at runtime.
  */
 return new class extends Migration
 {

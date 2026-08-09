@@ -19,6 +19,11 @@ use Illuminate\Support\Facades\Schema;
  * `activity_log`/`StatusEmitted` audit key type (UUID morphs). The nullable `parent` morph is ticket
  * 09's host-supplied rollup key (null = a flat singleton); folded in from the start rather than shipped
  * as a second migration.
+ *
+ * Shipped as a publish-only spatie/laravel-package-tools stub (`runsMigrations` FALSE): the package
+ * publishes this timestamp-less `.php.stub` via `configurePackage()`'s `->hasMigrations([...])`
+ * (`vendor:publish --tag=beam-workflows-migrations`), which re-stamps + sequences it into the host at
+ * install time. beam-workflows never `loadMigrationsFrom`'s it at runtime.
  */
 return new class extends Migration
 {
