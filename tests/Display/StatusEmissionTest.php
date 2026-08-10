@@ -102,6 +102,17 @@ it('broadcasts on the subject-scoped channel with a stable payload', function ()
         ]);
 });
 
+it('exposes the broadcast channel name as a server-computable attribute (HasStatusChannel), matching broadcastOn() exactly', function () {
+    $process = FakeProcess::create();
+    $event = new StatusEmitted($process, StatusEvent::whole(State::Complete, 'published'));
+
+    $broadcastChannel = collect($event->broadcastOn())->first()->name;
+
+    expect(StatusEmitted::channelNameFor($process))->toBe($broadcastChannel)
+        ->and($process->status_channel)->toBe($broadcastChannel)
+        ->and($process->toArray())->toHaveKey('status_channel', $broadcastChannel);
+});
+
 it('never writes status into the artifact it is generating (the load-bearing invariant)', function () {
     $process = FakeProcess::create(['payload' => ['title' => 'clean']]);
 

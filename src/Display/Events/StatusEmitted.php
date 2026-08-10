@@ -8,6 +8,7 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Splicewire\Beam\Workflows\Display\Concerns\HasStatusChannel;
 use Splicewire\Beam\Workflows\Display\StatusEvent;
 
 /**
@@ -55,9 +56,20 @@ class StatusEmitted implements ShouldBroadcast
             return [new Channel('status')];
         }
 
-        $key = str_replace('\\', '.', $this->subject::class).'.'.$this->subject->getKey();
+        return [new Channel(self::channelNameFor($this->subject))];
+    }
 
-        return [new Channel('status.'.$key)];
+    /**
+     * The channel name a subject's status events broadcast on — the single source of truth for this
+     * dotted-FQCN convention, so a subject's own `status_channel` attribute (see
+     * {@see HasStatusChannel}) can never drift from what this event actually broadcasts on. A caller
+     * resolves this from the server rather than reconstructing it (e.g. a hardcoded FE literal),
+     * which silently breaks the moment the subject's model class relocates to a different
+     * namespace/package.
+     */
+    public static function channelNameFor(Model $subject): string
+    {
+        return 'status.'.str_replace('\\', '.', $subject::class).'.'.$subject->getKey();
     }
 
     public function broadcastAs(): string

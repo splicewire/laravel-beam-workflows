@@ -3,6 +3,7 @@
 namespace Splicewire\Beam\Workflows\Tests\Fixtures;
 
 use Illuminate\Database\Eloquent\Model;
+use Splicewire\Beam\Workflows\Display\Concerns\HasStatusChannel;
 
 /**
  * A throwaway subject standing in for "the process/model whose status is being reported" — a
@@ -11,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class FakeProcess extends Model
 {
+    use HasStatusChannel;
+
     protected $table = 'fake_processes';
 
     protected $guarded = [];
