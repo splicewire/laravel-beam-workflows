@@ -7,6 +7,7 @@ use Rushing\Popcorn\InvocableRegistry;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 use Splicewire\Beam\Doctor\BeamDoctorManifest;
+use Splicewire\Beam\Install\BeamInstallManifest;
 use Splicewire\Beam\Manifest\ManifestArity;
 use Splicewire\Beam\Manifest\ManifestDescriptor;
 use Splicewire\Beam\Manifest\ManifestIndex;
@@ -202,6 +203,17 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
         $this->registerAwaitingSeam();
         $this->describeWorkflowManifests();
         $this->registerDoctorAudit();
+
+        // Self-register into beam-core's install manifest so `splicewire:beam:install` publishes
+        // this package's tenant migrations with the rest of the stack. Recohere gap: already
+        // publish-only converted, but never wired into the manifest.
+        if ($this->app->bound(BeamInstallManifest::class)) {
+            $this->app->make(BeamInstallManifest::class)->register(
+                package: 'splicewire/laravel-beam-workflows',
+                publishTags: ['beam-workflows-config', 'beam-workflows-migrations'],
+                migrates: true,
+            );
+        }
     }
 
     /**
