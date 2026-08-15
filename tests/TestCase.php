@@ -92,6 +92,22 @@ abstract class TestCase extends Orchestra
             });
         }
 
+        // `ClearAwaitingsOnTransition` deletes from this table on EVERY applied transition, so it is
+        // on the hot path of the lifecycle whether or not a suite stamps awaitings of its own.
+        // Without it, any test that applies a transition dies on a missing table rather than on
+        // anything it was written to assert.
+        if (! Schema::hasTable('workflow_awaitings')) {
+            Schema::create('workflow_awaitings', function (Blueprint $table) {
+                $table->uuid('id')->primary();
+                $table->uuidMorphs('subject');
+                $table->string('place');
+                $table->string('principal');
+                $table->nullableUuidMorphs('parent');
+                $table->timestamp('created_at')->nullable();
+                $table->unique(['subject_type', 'subject_id', 'place', 'principal'], 'workflow_awaitings_natural_key');
+            });
+        }
+
         if (! Schema::hasTable('workflow_definition_versions')) {
             Schema::create('workflow_definition_versions', function (Blueprint $table) {
                 $table->uuid('id')->primary();

@@ -63,28 +63,35 @@ class WorkflowRunner
 
         // CONTROL, authoritative: is the move legal? An unknown transition name, a marking that
         // does not enable it, or a vetoing guard all land here as "cannot" — never a half-apply.
+        //
+        // BOTH calls are inside the try, and that is load-bearing rather than defensive. symfony's
+        // `can()` returns false for an undefined transition without raising, so the
+        // UndefinedTransitionException actually surfaces from `buildTransitionBlockerList()` in the
+        // rejection branch below — which, wrapped only around `can()`, escaped this method and made
+        // an unknown transition name throw at the caller instead of returning the "cannot" result
+        // this comment promises.
         try {
             $can = $workflow->can($subject, $event);
+
+            if (! $can) {
+                $blockers = [];
+                foreach ($workflow->buildTransitionBlockerList($subject, $event) as $blocker) {
+                    $blockers[] = $blocker->getMessage();
+                }
+
+                return new TransitionResult(
+                    marking: $this->places($subject, $markingProperty),
+                    transition: $event,
+                    applied: false,
+                    blockers: $blockers ?: ["Transition [{$event}] is not enabled."],
+                );
+            }
         } catch (UndefinedTransitionException $e) {
             return new TransitionResult(
                 marking: $this->places($subject, $markingProperty),
                 transition: $event,
                 applied: false,
                 blockers: ["Unknown transition [{$event}] for workflow [{$blueprint->name}]."],
-            );
-        }
-
-        if (! $can) {
-            $blockers = [];
-            foreach ($workflow->buildTransitionBlockerList($subject, $event) as $blocker) {
-                $blockers[] = $blocker->getMessage();
-            }
-
-            return new TransitionResult(
-                marking: $this->places($subject, $markingProperty),
-                transition: $event,
-                applied: false,
-                blockers: $blockers ?: ["Transition [{$event}] is not enabled."],
             );
         }
 
@@ -171,12 +178,23 @@ class WorkflowRunner
             $terminal = $event->getWorkflow()->getEnabledTransitions($event->getSubject()) === [];
             $state = $terminal ? State::Complete : State::Running;
 
-            $this->emitter->emit(
-                $statusSubject,
-                StatusEvent::whole($state, "transition:{$transition} → ".implode(',', $places)),
-                $context->runId,
-                $context->actor,
-            );
+            // ISOLATED, and that is the whole Display-vs-Control invariant in one place. This
+            // listener runs INSIDE `Workflow::apply()`, on the far side of the marking mutation, so
+            // an emit that raised — a downed timeline, a full disk, a swapped-out activity model —
+            // propagated straight out of `apply()` and turned a legal, already-applied transition
+            // into an exception at the caller. Display is derived, eventually-consistent and
+            // lossy-OK; a status projection must never be the thing that breaks execution
+            // correctness. Report it and let the run continue.
+            try {
+                $this->emitter->emit(
+                    $statusSubject,
+                    StatusEvent::whole($state, "transition:{$transition} → ".implode(',', $places)),
+                    $context->runId,
+                    $context->actor,
+                );
+            } catch (\Throwable $e) {
+                report($e);
+            }
         });
     }
 
