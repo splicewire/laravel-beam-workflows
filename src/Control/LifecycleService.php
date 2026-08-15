@@ -95,6 +95,14 @@ class LifecycleService
      * fire-and-forget — an effect that throws is isolated so it can never roll back the Control change
      * that already committed.
      *
+     * ONE APPLY FIRES EACH EFFECT ONCE. A transition name may legally be declared several times in a
+     * blueprint — that is the workflow-net idiom for OR-ing source places, since a multi-place `from`
+     * means "consume ALL of these" rather than "any of these". Iterating declarations naively fired
+     * every matching declaration's effects, so a `fail` declared from four places ran its effects four
+     * times on a single apply: four teardown attempts, four duplicate audit notes, four notifications
+     * to the same reviewer. Effects are deduplicated by reference here, with the first declaration's
+     * params winning — a blueprint that wants an effect to run twice should reference it twice.
+     *
      * @param  list<string>  $from
      * @param  list<string>  $to
      */
@@ -104,23 +112,41 @@ class LifecycleService
 
         $this->events->dispatch($event);
 
+        foreach ($this->effectsFor($blueprint, $transitionName) as $ref => $params) {
+            try {
+                ($this->effects->get($ref))($event, $params);
+            } catch (\Throwable $e) {
+                report($e); // Display-side, lossy-OK: never break the committed transition.
+            }
+        }
+    }
+
+    /**
+     * The registered effects a transition NAME carries, deduplicated by reference and in declaration
+     * order. Unregistered references are skipped rather than raising — unlike a guard, which fails
+     * closed, a missing effect must not undo a transition that has already committed.
+     *
+     * @return array<string, array<string, mixed>> effect ref => author-set params
+     */
+    protected function effectsFor(WorkflowBlueprint $blueprint, string $transitionName): array
+    {
+        $resolved = [];
+
         foreach ($blueprint->transitions as $transition) {
             if ($transition->name !== $transitionName) {
                 continue;
             }
 
             foreach ($transition->effects as $ref) {
-                if (! $this->effects->has($ref)) {
+                if (isset($resolved[$ref]) || ! $this->effects->has($ref)) {
                     continue;
                 }
 
-                try {
-                    ($this->effects->get($ref))($event, $transition->effectParams($ref));
-                } catch (\Throwable $e) {
-                    report($e); // Display-side, lossy-OK: never break the committed transition.
-                }
+                $resolved[$ref] = $transition->effectParams($ref);
             }
         }
+
+        return $resolved;
     }
 
     /**

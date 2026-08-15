@@ -158,3 +158,30 @@ it('rejects a blueprint referencing an unknown effect at validation', function (
     expect(fn () => $validator->validate(effectBlueprint(effects: ['ghost_effect'])))
         ->toThrow(InvalidArgumentException::class, 'not in the effect catalog');
 });
+
+it('runs an effect ONCE when its transition name is declared from several places', function () {
+    // The workflow-net idiom: a multi-place `from` means "consume ALL of these", so OR-ing source
+    // places is expressed by declaring the same transition name once per place. Firing effects per
+    // DECLARATION meant one apply ran them once per source place — four teardown attempts, four
+    // duplicate audit notes, four notifications to the same reviewer.
+    $calls = 0;
+    app(TransitionEffectRegistry::class)->register('count_calls', function () use (&$calls) {
+        $calls++;
+    });
+
+    app(DefinitionStore::class)->ensureSystemLineage('effect.lifecycle', 'Effect Lifecycle', WorkflowBlueprint::fromArray([
+        'name' => 'effect.lifecycle',
+        'places' => ['open', 'triaged', 'closed'],
+        'initial' => ['open'],
+        'transitions' => [
+            ['name' => 'triage', 'from' => 'open', 'to' => 'triaged'],
+            ['name' => 'close', 'from' => 'open', 'to' => 'closed', 'effects' => ['count_calls']],
+            ['name' => 'close', 'from' => 'triaged', 'to' => 'closed', 'effects' => ['count_calls']],
+        ],
+    ]));
+    app(WorkflowBindingRegistry::class)->bind('effect-ticket', 'effect.lifecycle');
+
+    app(LifecycleService::class)->transition(EffectTicket::create(['status' => 'open']), 'close');
+
+    expect($calls)->toBe(1);
+});
