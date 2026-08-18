@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Splicewire\Beam\Schema\ConvergentTable;
 
 /**
  * Persisted type→workflow bindings (beam-workflows v2 tickets 02/09) — TENANT-scoped, because a
@@ -22,12 +23,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('workflow_bindings', function (Blueprint $table) {
-            $table->string('type_key')->primary();
-            $table->string('lineage_ref');
-            $table->json('params')->nullable();
-            $table->timestamps();
-        });
+        ConvergentTable::named('workflow_bindings')
+            ->define(function (Blueprint $table) {
+                $table->string('type_key')->primary();
+                $table->string('lineage_ref');
+                $table->json('params')->nullable();
+                $table->timestamps();
+            })
+            ->assert();
     }
 
     public function down(): void
