@@ -3,7 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Splicewire\Beam\Schema\ConvergentTable;
+use Rushing\SchemaConvergence\ConvergentTable;
 
 /**
  * Persisted type→workflow bindings (beam-workflows v2 tickets 02/09) — TENANT-scoped, because a
