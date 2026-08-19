@@ -6,6 +6,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Spatie\Activitylog\ActivitylogServiceProvider;
+use Spatie\LaravelData\LaravelDataServiceProvider;
 use Splicewire\Beam\Workflows\BeamWorkflowsServiceProvider;
 
 abstract class TestCase extends Orchestra
@@ -16,12 +17,20 @@ abstract class TestCase extends Orchestra
      * present, so the base suite deliberately omits it — a host that only wants the status
      * substrate boots with exactly these providers.
      *
+     * `LaravelDataServiceProvider` publishes spatie/laravel-data's own `config('data')` —
+     * required for `Data::from($eloquentModel)`'s model→Data mapping (the zero-glue
+     * `#[ParticleResource]` tier, `WorkflowAwaitingRowData`) to resolve
+     * `config('data.validation_strategy')`; every Data class in this package was previously only
+     * ever constructed directly (`new WorkflowBlueprintData(...)`), never via `::from()`, so this
+     * gap was never hit before.
+     *
      * @return array<int, class-string>
      */
     protected function getPackageProviders($app): array
     {
         return [
             ActivitylogServiceProvider::class,
+            LaravelDataServiceProvider::class,
             BeamWorkflowsServiceProvider::class,
         ];
     }
