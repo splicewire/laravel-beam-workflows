@@ -3,7 +3,7 @@
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Activitylog\Models\Activity;
-use Splicewire\Beam\Workflows\Display\Status;
+use Splicewire\Beam\Workflows\Facades\Status;
 use Splicewire\Beam\Workflows\Tests\Fixtures\AltActivity;
 use Splicewire\Beam\Workflows\Tests\Fixtures\FakeProcess;
 

@@ -33,6 +33,7 @@ use Splicewire\Beam\Workflows\Control\WorkflowRegistry;
 use Splicewire\Beam\Workflows\Control\WorkflowRunner;
 use Splicewire\Beam\Workflows\Definition\DefinitionStore;
 use Splicewire\Beam\Workflows\Display\StatusEmitter;
+use Splicewire\Beam\Workflows\Display\StatusManager;
 use Splicewire\Beam\Workflows\Doctor\BeamWorkflowsMigrationsAudit;
 use Splicewire\Beam\Workflows\Migration\MarkingMigrator;
 use Splicewire\Beam\Workflows\Type\SchemaTypeProjector;
@@ -101,6 +102,13 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
         $this->app->singleton(StatusEmitter::class, fn ($app) => new StatusEmitter(
             $app['config'],
             $app['events'],
+        ));
+
+        // The Display front door (beam-facade ticket 32): `Splicewire\Beam\Workflows\Facades\Status`
+        // resolves here. The emitter is constructor-injected rather than pulled per call — it is a
+        // singleton, so there is no per-call rebinding to preserve.
+        $this->app->singleton(StatusManager::class, fn ($app) => new StatusManager(
+            $app->make(StatusEmitter::class),
         ));
 
         // Type seam (PRD v2 §1). The socket's selector: the SchemaTypeProjector is the second
