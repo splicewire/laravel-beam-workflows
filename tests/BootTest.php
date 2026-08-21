@@ -10,9 +10,9 @@ it('boots the service provider and resolves the bridge', function () {
     expect(app(WorkflowFactory::class))->toBeInstanceOf(WorkflowFactory::class);
 });
 
-it('publishes the beam-workflows config', function () {
-    expect(config('beam-workflows.status_log_name'))->toBe('status');
-    expect(config('beam-workflows.node_capability'))->toBe('workflow.apply');
+it('publishes the beam.workflows config under its nested key', function () {
+    expect(config('beam.workflows.status_log_name'))->toBe('status');
+    expect(config('beam.workflows.node_capability'))->toBe('workflow.apply');
 });
 
 it('wraps a symfony/workflow definition into a runnable workflow with a multi-place marking store', function () {
