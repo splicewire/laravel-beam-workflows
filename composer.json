@@ -33,7 +33,8 @@
         "pestphp/pest": "^2.0|^3.0",
         "rushing/laravel-popcorn": "@dev",
         "splicewire/laravel-circuit-engine": "@dev",
-        "splicewire/laravel-circuit-spine": "@dev"
+        "splicewire/laravel-circuit-spine": "@dev",
+        "wikimedia/composer-merge-plugin": "^2.1"
     },
     "suggest": {
         "splicewire/laravel-circuit-engine": "Enables the state-machine Circuit node type (Seam B): the local `workflow.apply` capability registers into the kernel's CapabilityManifest so a state machine slots into a Circuit graph. Without it, the Display substrate (Seam A) and the DefinitionBuilder still work standalone."
@@ -56,6 +57,11 @@
             "providers": [
                 "Splicewire\\Beam\\Workflows\\BeamWorkflowsServiceProvider"
             ]
+        },
+        "merge-plugin": {
+            "include": [
+                "composer.local.json"
+            ]
         }
     },
     "minimum-stability": "dev",
@@ -67,30 +73,30 @@
     "config": {
         "sort-packages": true,
         "allow-plugins": {
-            "pestphp/pest-plugin": true
+            "pestphp/pest-plugin": true,
+            "wikimedia/composer-merge-plugin": true
         }
     },
     "repositories": [
         {
-            "type": "path",
-            "url": "../*",
-            "options": {
-                "symlink": true
-            }
+            "type": "git",
+            "url": "https://github.com/stephenr85/laravel-popcorn.git"
         },
         {
-            "type": "path",
-            "url": "../../rushing/*",
-            "options": {
-                "symlink": true
-            }
+            "type": "git",
+            "url": "https://github.com/stephenr85/laravel-schema-convergence.git"
         },
         {
-            "type": "path",
-            "url": "../../schemastud/*",
-            "options": {
-                "symlink": true
-            }
+            "type": "git",
+            "url": "https://github.com/splicewire/laravel-beam.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/splicewire/laravel-circuit-engine.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/splicewire/laravel-circuit-spine.git"
         }
     ]
 }
