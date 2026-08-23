@@ -2,6 +2,10 @@
 
 namespace Splicewire\Beam\Workflows\Control;
 
+use Rushing\Popcorn\Registries\IsRegistry;
+use Rushing\Popcorn\Registries\OnDuplicate;
+use Rushing\Popcorn\Registries\RegistryArity;
+
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -25,6 +29,13 @@ use InvalidArgumentException;
  * @phpstan-type Guard callable(object): (bool|string)
  * @phpstan-type CatalogEntry array{name: string, label: string, paramsSchema: array<string, mixed>}
  */
+#[IsRegistry(
+    root: 'beam.workflows.guards',
+    of: 'transition guard callables by reference, with editor-menu catalog entries',
+    arity: RegistryArity::PickOne,
+    onDuplicate: OnDuplicate::Supersede,
+    order: 33,
+)]
 class GuardRegistry
 {
     /** @var array<string, callable> */

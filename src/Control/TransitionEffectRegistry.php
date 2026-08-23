@@ -2,6 +2,10 @@
 
 namespace Splicewire\Beam\Workflows\Control;
 
+use Rushing\Popcorn\Registries\IsRegistry;
+use Rushing\Popcorn\Registries\OnDuplicate;
+use Rushing\Popcorn\Registries\RegistryArity;
+
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Splicewire\Beam\Workflows\Control\Events\WorkflowTransitioned;
@@ -19,6 +23,13 @@ use Splicewire\Beam\Workflows\Control\Events\WorkflowTransitioned;
  *
  * @phpstan-type Effect callable(WorkflowTransitioned, array<string, mixed>): void
  */
+#[IsRegistry(
+    root: 'beam.workflows.effects',
+    of: 'post-transition effect callables by reference, with catalog entries',
+    arity: RegistryArity::PickOne,
+    onDuplicate: OnDuplicate::Supersede,
+    order: 34,
+)]
 class TransitionEffectRegistry
 {
     /** @var array<string, callable> */

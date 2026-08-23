@@ -1,6 +1,6 @@
 {
     "name": "splicewire/laravel-beam-workflows",
-    "description": "The workflows arm of the schemastud beam family: a beam can model status. Sets the platform precedent for two seams — a normalized status projection (Display, over spatie/laravel-activitylog) and a state-machine Circuit node type (Control, over symfony/workflow) — sitting BESIDE the paid laravel-circuit-engine / laravel-composition-engine kernels without modifying either (ADR-0092, ADR-0034). Ships one shared State vocabulary + StatusEvent shape and proves both seams end-to-end on the composition lifecycle.",
+    "description": "The workflows arm of the schemastud beam family: a beam can model status. Sets the platform precedent for two seams \u2014 a normalized status projection (Display, over spatie/laravel-activitylog) and a state-machine Circuit node type (Control, over symfony/workflow) \u2014 sitting BESIDE the paid laravel-circuit-engine / laravel-composition-engine kernels without modifying either (ADR-0092, ADR-0034). Ships one shared State vocabulary + StatusEvent shape and proves both seams end-to-end on the composition lifecycle.",
     "keywords": [
         "laravel",
         "schemastud",
@@ -25,7 +25,8 @@
         "splicewire/laravel-beam": "*",
         "spatie/laravel-activitylog": "^4.0|^5.0",
         "symfony/workflow": "^6.4|^7.0",
-        "rushing/laravel-schema-convergence": "*"
+        "rushing/laravel-schema-convergence": "*",
+        "rushing/php-popcorn": "dev-main"
     },
     "require-dev": {
         "laravel/pint": "^1.0",
@@ -97,6 +98,10 @@
         {
             "type": "git",
             "url": "https://github.com/splicewire/laravel-circuit-spine.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/stephenr85/php-popcorn.git"
         }
     ]
 }

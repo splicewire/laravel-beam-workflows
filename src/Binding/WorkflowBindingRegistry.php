@@ -2,6 +2,10 @@
 
 namespace Splicewire\Beam\Workflows\Binding;
 
+use Rushing\Popcorn\Registries\IsRegistry;
+use Rushing\Popcorn\Registries\OnDuplicate;
+use Rushing\Popcorn\Registries\RegistryArity;
+
 use Psr\Log\LoggerInterface;
 use Splicewire\Beam\Workflows\Type\TypeIdentityResolver;
 
@@ -18,6 +22,15 @@ use Splicewire\Beam\Workflows\Type\TypeIdentityResolver;
  * lifecycle reads as "unmanaged" — today's behaviour for everything without a binding. Nothing
  * downstream special-cases Composition; Composition is simply the first registered entry.
  */
+#[IsRegistry(
+    root: 'beam.workflows.bindings',
+    of: 'typeKey → Binding mappings (presence IS the enable), resolved by type',
+    arity: RegistryArity::PickOne,
+    onDuplicate: OnDuplicate::Supersede,
+    note: 'Presence is the enable and absence is the disable, so an empty registry is meaningful state '
+        .'rather than a miss to paper over — which is why this is Optional and a read returns null.',
+    order: 32,
+)]
 class WorkflowBindingRegistry
 {
     /** @var array<string, Binding> */

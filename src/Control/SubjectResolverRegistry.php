@@ -2,6 +2,10 @@
 
 namespace Splicewire\Beam\Workflows\Control;
 
+use Rushing\Popcorn\Registries\IsRegistry;
+use Rushing\Popcorn\Registries\OnDuplicate;
+use Rushing\Popcorn\Registries\RegistryArity;
+
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -13,6 +17,13 @@ use Illuminate\Database\Eloquent\Model;
  * (ticket 01), so a single kind (`composition`) can still resolve to many workflow types (its class
  * key or a schema key).
  */
+#[IsRegistry(
+    root: 'beam.workflows.subject-resolvers',
+    of: 'subject finders by kind slug (id → model) for generic actuation',
+    arity: RegistryArity::PickOne,
+    onDuplicate: OnDuplicate::Supersede,
+    order: 35,
+)]
 class SubjectResolverRegistry
 {
     /** @var array<string, callable(string): ?Model> */

@@ -2,6 +2,10 @@
 
 namespace Splicewire\Beam\Workflows\Control;
 
+use Rushing\Popcorn\Registries\IsRegistry;
+use Rushing\Popcorn\Registries\OnDuplicate;
+use Rushing\Popcorn\Registries\RegistryArity;
+
 use InvalidArgumentException;
 use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
 
@@ -11,6 +15,13 @@ use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
  * place a host declares its workflows, shared by the Seam B node and the Seam C lifecycle so both
  * drive the SAME definition.
  */
+#[IsRegistry(
+    root: 'beam.workflows.blueprints',
+    of: 'named workflow blueprints (state machines), resolved by name',
+    arity: RegistryArity::PickOne,
+    onDuplicate: OnDuplicate::Supersede,
+    order: 30,
+)]
 class WorkflowRegistry
 {
     /** @var array<string, WorkflowBlueprint> */

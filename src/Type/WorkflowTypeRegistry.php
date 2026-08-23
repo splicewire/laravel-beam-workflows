@@ -2,6 +2,10 @@
 
 namespace Splicewire\Beam\Workflows\Type;
 
+use Rushing\Popcorn\Registries\IsRegistry;
+use Rushing\Popcorn\Registries\OnDuplicate;
+use Rushing\Popcorn\Registries\RegistryArity;
+
 use Illuminate\Support\Str;
 use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
 
@@ -16,6 +20,16 @@ use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
  * {@see WorkflowBindingRegistry}): a type can be registered here
  * yet unbound (⇒ unmanaged), and a binding can exist for a type never registered here.
  */
+#[IsRegistry(
+    root: 'beam.workflows.types',
+    of: 'governable workflow types (key + label) for the admin dropdown',
+    arity: RegistryArity::RunAll,
+    onDuplicate: OnDuplicate::Supersede,
+    note: 'RunAll because the read that matters is the whole enumeration behind an admin dropdown — so '
+        .'keys() ordering is OBSERVABLE BY A USER, which is why registration order being guaranteed is not '
+        .'a detail here.',
+    order: 31,
+)]
 class WorkflowTypeRegistry
 {
     /** @var array<string, string> key => label */
