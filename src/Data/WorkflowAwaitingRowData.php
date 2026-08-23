@@ -33,7 +33,7 @@ use Splicewire\Beam\Workflows\Awaiting\WorkflowAwaiting;
  */
 #[ParticleResource(
     key: 'workflow-awaiting',
-    model: WorkflowAwaiting::class,
+    backing: WorkflowAwaiting::class,
     label: 'Workflow Queue',
     group: 'Ops',
     icon: 'inbox',
