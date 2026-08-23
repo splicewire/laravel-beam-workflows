@@ -22,17 +22,17 @@
         "php": "^8.2",
         "illuminate/contracts": "^11.0|^12.0|^13.0",
         "illuminate/support": "^11.0|^12.0|^13.0",
-        "splicewire/laravel-beam": "*",
-        "spatie/laravel-activitylog": "^4.0|^5.0",
-        "symfony/workflow": "^6.4|^7.0",
+        "rushing/laravel-popcorn": "@dev",
         "rushing/laravel-schema-convergence": "*",
-        "rushing/php-popcorn": "dev-main"
+        "rushing/php-popcorn": "dev-main",
+        "spatie/laravel-activitylog": "^4.0|^5.0",
+        "splicewire/laravel-beam": "*",
+        "symfony/workflow": "^6.4|^7.0"
     },
     "require-dev": {
         "laravel/pint": "^1.0",
         "orchestra/testbench": "^9.0|^10.0",
         "pestphp/pest": "^2.0|^3.0",
-        "rushing/laravel-popcorn": "@dev",
         "splicewire/laravel-circuit-engine": "@dev",
         "splicewire/laravel-circuit-spine": "@dev",
         "wikimedia/composer-merge-plugin": "^2.1"
@@ -102,6 +102,42 @@
         {
             "type": "git",
             "url": "https://github.com/stephenr85/php-popcorn.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/stephenr85/codegen.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/stephenr85/laravel-doctor.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/stephenr85/laravel-data-filters.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/stephenr85/laravel-permission-cascade.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/stephenr85/laravel-versioning.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/schemastud/laravel-data-schemas.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/schemastud/laravel-frame.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/stephenr85/laravel-pipeline-registry.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/schemastud/laravel-json-ns.git"
         }
     ]
 }
