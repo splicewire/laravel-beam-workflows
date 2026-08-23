@@ -36,10 +36,36 @@ use Splicewire\Beam\Workflows\Display\Events\StatusEmitted;
  */
 class StatusEmitter
 {
+    /** @var Dispatcher|(callable(): Dispatcher) */
+    protected $events;
+
+    /**
+     * The dispatcher may be handed in as a RESOLVER rather than an instance, and the provider hands
+     * one in.
+     *
+     * This class is a singleton, so capturing the dispatcher at construction bakes in whichever
+     * instance existed at that moment — and `Event::fake()` works by REBINDING `events`, so a faked
+     * dispatcher never reaches an emitter built before the fake. That was invisible only because
+     * nothing resolved this during boot; the moment something did (registry-kernel ticket 40 fills
+     * workflows' capability registry eagerly at `packageBooted()`), `Event::assertDispatched()`
+     * started failing against events that really were dispatched — to the wrong dispatcher.
+     *
+     * Resolving per emit costs a container hit on a fire-and-forget path and removes a whole class
+     * of order-dependent test lies.
+     *
+     * @param  Dispatcher|(callable(): Dispatcher)  $events
+     */
     public function __construct(
         protected Config $config,
-        protected Dispatcher $events,
-    ) {}
+        Dispatcher|callable $events,
+    ) {
+        $this->events = $events;
+    }
+
+    protected function events(): Dispatcher
+    {
+        return $this->events instanceof Dispatcher ? $this->events : ($this->events)();
+    }
 
     /**
      * Emit a status event. `$runId` groups every event of one run (null = ungrouped); `$actor` is the
@@ -85,7 +111,7 @@ class StatusEmitter
 
         // The single broadcast/SSE seam that ends the UI's poll loops. Dispatched always (so
         // in-process listeners + tests observe it); only reaches a broadcaster when enabled.
-        $this->events->dispatch(new StatusEmitted(
+        $this->events()->dispatch(new StatusEmitted(
             $subject,
             $event,
             $runId,

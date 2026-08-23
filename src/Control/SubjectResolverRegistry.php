@@ -2,11 +2,10 @@
 
 namespace Splicewire\Beam\Workflows\Control;
 
+use Illuminate\Database\Eloquent\Model;
 use Rushing\Popcorn\Registries\IsRegistry;
 use Rushing\Popcorn\Registries\OnDuplicate;
 use Rushing\Popcorn\Registries\RegistryArity;
-
-use Illuminate\Database\Eloquent\Model;
 
 /**
  * The host seam that makes workflow actuation GENERIC (beam-workflows v2). A record is addressed

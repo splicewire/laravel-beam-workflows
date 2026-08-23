@@ -2,11 +2,10 @@
 
 namespace Splicewire\Beam\Workflows\Control;
 
+use InvalidArgumentException;
 use Rushing\Popcorn\Registries\IsRegistry;
 use Rushing\Popcorn\Registries\OnDuplicate;
 use Rushing\Popcorn\Registries\RegistryArity;
-
-use InvalidArgumentException;
 use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
 
 /**

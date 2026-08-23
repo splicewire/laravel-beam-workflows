@@ -2,12 +2,11 @@
 
 namespace Splicewire\Beam\Workflows\Control;
 
+use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Rushing\Popcorn\Registries\IsRegistry;
 use Rushing\Popcorn\Registries\OnDuplicate;
 use Rushing\Popcorn\Registries\RegistryArity;
-
-use Illuminate\Support\Str;
-use InvalidArgumentException;
 
 /**
  * Resolves a transition's guard *reference* (a string carried in the blueprint) to an actual guard

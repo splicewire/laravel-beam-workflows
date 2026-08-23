@@ -2,12 +2,11 @@
 
 namespace Splicewire\Beam\Workflows\Control;
 
+use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Rushing\Popcorn\Registries\IsRegistry;
 use Rushing\Popcorn\Registries\OnDuplicate;
 use Rushing\Popcorn\Registries\RegistryArity;
-
-use Illuminate\Support\Str;
-use InvalidArgumentException;
 use Splicewire\Beam\Workflows\Control\Events\WorkflowTransitioned;
 
 /**

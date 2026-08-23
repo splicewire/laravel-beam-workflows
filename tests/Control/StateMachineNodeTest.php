@@ -1,19 +1,19 @@
 <?php
 
-use Rushing\Popcorn\InvocableRegistry;
 use Spatie\Activitylog\Models\Activity;
 use Splicewire\Beam\Workflows\Control\GuardRegistry;
 use Splicewire\Beam\Workflows\Control\WorkflowApplyInvocable;
+use Splicewire\Beam\Workflows\Control\WorkflowInvocableRegistry;
 use Splicewire\Beam\Workflows\Control\WorkflowRegistry;
-use Splicewire\Circuits\Dispatch\CapabilityDispatcher;
 use Splicewire\Circuits\Context\RunContext;
+use Splicewire\Circuits\Dispatch\CapabilityDispatcher;
 use Splicewire\Circuits\Graph\Node;
 use Splicewire\Circuits\Ports\Envelope;
 use Splicewire\Circuits\Ports\Port;
 
 /*
  * Seam B behavioral tests — run a state-machine node through the kernel's REAL capability-dispatch
- * path (CapabilityDispatcher → InvocableRegistry → the registered `workflow.apply` invocable →
+ * path (CapabilityDispatcher → RegistryIndex → the registered `workflow.apply` invocable →
  * output Port validation). Assert observable behavior (advanced marking, emitted status, rejected
  * illegal transition), never symfony/workflow internals.
  */
@@ -51,8 +51,20 @@ function dispatchWorkflowNode(array $config, array $upstream): Envelope
     return app(CapabilityDispatcher::class)->dispatch($node, $inputs, new RunContext('run-1'));
 }
 
-it('registers the state-machine node into the kernel capability registry', function () {
-    expect(app(InvocableRegistry::class)->has('workflow.apply'))->toBeTrue();
+it('registers the state-machine node into workflows OWN capability registry', function () {
+    // Unguarded now: this used to sit behind a class_exists/bound() soft-dep test on the circuit
+    // engine, because the capability was written into a pool circuits bound. It is registered
+    // whether or not anything dispatches to it (registry-kernel ticket 40).
+    expect(app(WorkflowInvocableRegistry::class)->has('workflow.apply'))->toBeTrue();
+});
+
+it('is reachable from the circuit dispatcher by longest-prefix routing, across packages', function () {
+    // The property the shared singleton was faking. Circuits own no capabilities and workflows do
+    // not depend on circuits; the index is what joins them, and it does it on the declared root.
+    $store = app(Rushing\Popcorn\Registries\RegistryIndex::class)
+        ->routeTo(Rushing\Popcorn\Registries\Key::parse('workflow.apply'));
+
+    expect($store)->toBeInstanceOf(WorkflowInvocableRegistry::class);
 });
 
 it('advances the marking on a legal transition through capability dispatch', function () {

@@ -5,8 +5,8 @@ use Spatie\Activitylog\Models\Activity;
 use Splicewire\Beam\Workflows\Display\Events\StatusEmitted;
 use Splicewire\Beam\Workflows\Display\Progress;
 use Splicewire\Beam\Workflows\Display\State;
-use Splicewire\Beam\Workflows\Facades\Status;
 use Splicewire\Beam\Workflows\Display\StatusEvent;
+use Splicewire\Beam\Workflows\Facades\Status;
 use Splicewire\Beam\Workflows\Tests\Fixtures\FakeProcess;
 
 /*

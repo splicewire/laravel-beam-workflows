@@ -2,11 +2,10 @@
 
 namespace Splicewire\Beam\Workflows\Binding;
 
+use Psr\Log\LoggerInterface;
 use Rushing\Popcorn\Registries\IsRegistry;
 use Rushing\Popcorn\Registries\OnDuplicate;
 use Rushing\Popcorn\Registries\RegistryArity;
-
-use Psr\Log\LoggerInterface;
 use Splicewire\Beam\Workflows\Type\TypeIdentityResolver;
 
 /**

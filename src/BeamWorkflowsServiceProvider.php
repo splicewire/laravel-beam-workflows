@@ -3,7 +3,7 @@
 namespace Splicewire\Beam\Workflows;
 
 use Psr\Log\LoggerInterface;
-use Rushing\Popcorn\InvocableRegistry;
+use Rushing\Popcorn\Registries\RegistryIndex;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 use Splicewire\Beam\Doctor\BeamDoctorManifest;
@@ -25,6 +25,7 @@ use Splicewire\Beam\Workflows\Control\SubjectResolverRegistry;
 use Splicewire\Beam\Workflows\Control\TransitionEffectRegistry;
 use Splicewire\Beam\Workflows\Control\WorkflowActuator;
 use Splicewire\Beam\Workflows\Control\WorkflowApplyInvocable;
+use Splicewire\Beam\Workflows\Control\WorkflowInvocableRegistry;
 use Splicewire\Beam\Workflows\Control\WorkflowRegistry;
 use Splicewire\Beam\Workflows\Control\WorkflowRunner;
 use Splicewire\Beam\Workflows\Definition\DefinitionStore;
@@ -95,9 +96,12 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
         // stays deliberately unbound: it is the single identity-touching seam and MUST be host-supplied.
         $this->app->bindIf(AwaitingStore::class, EloquentAwaitingStore::class, shared: true);
 
+        // The dispatcher goes in as a RESOLVER, not an instance: this is a singleton, and
+        // `Event::fake()` rebinds `events`, so a captured dispatcher makes a fake silently
+        // ineffective for any emitter built before it (see StatusEmitter).
         $this->app->singleton(StatusEmitter::class, fn ($app) => new StatusEmitter(
             $app['config'],
-            $app['events'],
+            fn () => $app['events'],
         ));
 
         // The Display front door (beam-facade ticket 32): `Splicewire\Beam\Workflows\Facades\Status`
@@ -194,6 +198,8 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
             $app->make(LifecycleService::class),
         ));
 
+        $this->app->singleton(WorkflowInvocableRegistry::class);
+
         $this->app->singleton(WorkflowApplyInvocable::class, fn ($app) => new WorkflowApplyInvocable(
             (string) config('beam.workflows.node_capability', 'workflow.apply'),
             $app->make(WorkflowRunner::class),
@@ -264,18 +270,22 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
     }
 
     /**
-     * Register the state-machine node into the Circuit kernel's capability registry — the ADR-0034
-     * dispatch seam, NOT a new registry. Guarded on the circuit-engine being installed (soft dep):
-     * a host that only wants the Display substrate boots with no Circuit dependency and this is a
-     * no-op.
+     * Register the state-machine node into workflows' OWN capability registry — the ADR-0034 dispatch
+     * seam, now rooted where this package owns it.
+     *
+     * Unguarded, deliberately. The old `class_exists(...) || ! bound(...)` guard was a soft-dependency
+     * test on the circuit engine, because the capability was being written into a pool circuits bound;
+     * a host wanting only the Display substrate would silently register nothing. That is ticket 04 D1's
+     * defect class — a package's registration present or absent by host composition. Owning the root
+     * removes the condition entirely: the capability always exists, and whether a circuit node
+     * dispatches to it is the host's business.
      */
     protected function registerStateMachineNode(): void
     {
-        if (! class_exists(InvocableRegistry::class) || ! $this->app->bound(InvocableRegistry::class)) {
-            return;
-        }
-
-        $this->app->make(InvocableRegistry::class)
+        $registry = $this->app->make(WorkflowInvocableRegistry::class)
             ->register($this->app->make(WorkflowApplyInvocable::class));
+
+        // An owner registers DOWN into the index from its own boot; the index never reaches up.
+        $this->app->make(RegistryIndex::class)->describe($registry);
     }
 }

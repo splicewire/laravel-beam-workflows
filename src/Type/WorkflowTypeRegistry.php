@@ -2,11 +2,10 @@
 
 namespace Splicewire\Beam\Workflows\Type;
 
+use Illuminate\Support\Str;
 use Rushing\Popcorn\Registries\IsRegistry;
 use Rushing\Popcorn\Registries\OnDuplicate;
 use Rushing\Popcorn\Registries\RegistryArity;
-
-use Illuminate\Support\Str;
 use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
 
 /**

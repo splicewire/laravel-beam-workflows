@@ -5,6 +5,7 @@ namespace Splicewire\Beam\Workflows\Tests;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase as Orchestra;
+use Rushing\Popcorn\Laravel\PopcornServiceProvider;
 use Spatie\Activitylog\ActivitylogServiceProvider;
 use Spatie\LaravelData\LaravelDataServiceProvider;
 use Splicewire\Beam\Workflows\BeamWorkflowsServiceProvider;
@@ -31,6 +32,10 @@ abstract class TestCase extends Orchestra
         return [
             ActivitylogServiceProvider::class,
             LaravelDataServiceProvider::class,
+            // laravel-popcorn binds RegistryIndex as a SINGLETON. Without it the index is
+            // auto-resolvable but unshared, so an owner's describe() lands on a throwaway and the
+            // registry is unroutable — index membership as a function of host composition (04 D1).
+            PopcornServiceProvider::class,
             BeamWorkflowsServiceProvider::class,
         ];
     }
