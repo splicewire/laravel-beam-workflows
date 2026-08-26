@@ -210,6 +210,15 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
     public function packageBooted(): void
     {
         $this->registerStateMachineNode();
+
+        // Declaring and indexing are two acts (registry-kernel 21 D1). The type catalog declares
+        // `beam.workflows.types`; this is where that root becomes routable. Described unconditionally
+        // and possibly EMPTY — a host that governs nothing still owns the branch, which is 04 D1's rule
+        // that a package's registration must not be present-or-absent by host composition.
+        $this->app->make(RegistryIndex::class)->describe(
+            $this->app->make(WorkflowTypeRegistry::class),
+            by: self::class,
+        );
         $this->registerAwaitingSeam();
         $this->registerDoctorAudit();
 
