@@ -60,7 +60,11 @@ class TransitionEffectRegistry implements Gated, Registry
      * Register an effect under a reference, plus its catalog entry.
      *
      * `label` and `paramsSchema` sit in slots 5 and 6 because the contract owns 3 and 4 — see
-     * {@see GuardRegistry::register()}; every live caller already passes them by name.
+     * {@see GuardRegistry::register()}, which carries the full account. They MUST be passed by
+     * name. Unlike the guard registry this signature cannot fail loudly on a positional `label`:
+     * it lands in `$by`, which is also `?string`, so the call type-checks and the label is simply
+     * lost. `splicewire/laravel-satellite-training` did exactly that until 2026-08-27 and nothing
+     * reported it — the sibling positional `paramsSchema` on the guard side is what surfaced it.
      *
      * @param  callable(WorkflowTransitioned, array<string, mixed>): void|mixed  $effect
      * @param  array<string, mixed>  $paramsSchema

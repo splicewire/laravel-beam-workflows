@@ -77,9 +77,16 @@ class GuardRegistry implements Gated, Registry
      *
      * The contract fixes slots 3 and 4 as `$by` (the registrant) and `$ability` (the gate token),
      * and PHP forbids narrowing either. The port's own two arguments therefore sit AFTER them.
-     * Every live caller in the estate already passes both by NAME (`label:`, `paramsSchema:`), so
-     * the move is invisible — verified across `splicewire/tower`, `splicewire/laravel-beam-ux` and
-     * the app before it was made.
+     *
+     * ⚠️ **`label:` and `paramsSchema:` MUST be passed by name.** This docblock previously claimed
+     * every live caller in the estate already did, "verified across `splicewire/tower`,
+     * `splicewire/laravel-beam-ux` and the app" — that verification set was not the estate.
+     * `splicewire/laravel-satellite-training` passed both POSITIONALLY, so the move landed a
+     * `paramsSchema` array in `$ability` and `~/Herd/audiostud` could not run `php artisan` at all.
+     * Re-swept 2026-08-27 across every package `src` and `tests` dir, every Herd host `app` dir and
+     * every starter: satellite-training was the only positional caller, and it is fixed. Sweep the
+     * real paths before believing a claim of this shape again — a symlink-view grep from the
+     * ecosystem root reports zero and exits successfully.
      *
      * @param  callable(object): (bool|string)|mixed  $guard
      * @param  array<string, mixed>  $paramsSchema
