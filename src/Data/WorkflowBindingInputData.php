@@ -4,7 +4,7 @@ namespace Splicewire\Beam\Workflows\Data;
 
 use Schemastud\DataSchemas\Attributes\Description;
 use Schemastud\DataSchemas\Attributes\Example;
-use Splicewire\Beam\Data\Data;
+use Splicewire\Beam\Data\BeamData;
 
 /**
  * Input payload for binding a type to a workflow (`PUT /beam/workflows/bindings`).
@@ -18,7 +18,7 @@ use Splicewire\Beam\Data\Data;
  * record of what the binding IS rather than a description of what a caller may send.
  */
 #[Description('Payload for putting a record type under the governance of a workflow. Binding a type that is already bound replaces the existing binding rather than adding a second.')]
-class WorkflowBindingInputData extends Data
+class WorkflowBindingInputData extends BeamData
 {
     public function __construct(
         #[Description('The record type to govern — a schema identifier. Sent in the body rather than the path because a schema `$id` may contain slashes.')]

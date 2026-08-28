@@ -3,7 +3,7 @@
 namespace Splicewire\Beam\Workflows\Data;
 
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
-use Splicewire\Beam\Data\Data;
+use Splicewire\Beam\Data\BeamData;
 
 /**
  * One immutable version of a workflow definition lineage (beam-workflows v2 ticket 03): its ordered
@@ -11,7 +11,7 @@ use Splicewire\Beam\Data\Data;
  * version — a version row is never rewritten.
  */
 #[TypeScript]
-class WorkflowVersionData extends Data
+class WorkflowVersionData extends BeamData
 {
     public function __construct(
         public string $id,

@@ -3,7 +3,7 @@
 namespace Splicewire\Beam\Workflows\Data;
 
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
-use Splicewire\Beam\Data\Data;
+use Splicewire\Beam\Data\BeamData;
 
 /**
  * One governable workflow-type option (beam-workflows v2): a stable `key` and a human `label`. The
@@ -11,7 +11,7 @@ use Splicewire\Beam\Data\Data;
  * known type instead of typing a free-text key.
  */
 #[TypeScript]
-class WorkflowTypeOptionData extends Data
+class WorkflowTypeOptionData extends BeamData
 {
     public function __construct(
         public string $key,

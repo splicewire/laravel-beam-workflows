@@ -3,7 +3,7 @@
 namespace Splicewire\Beam\Workflows\Data;
 
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
-use Splicewire\Beam\Data\Data;
+use Splicewire\Beam\Data\BeamData;
 use Splicewire\Beam\Workflows\Control\TransitionResult;
 
 /**
@@ -17,7 +17,7 @@ use Splicewire\Beam\Workflows\Control\TransitionResult;
  * always carries one.
  */
 #[TypeScript]
-class WorkflowTransitionAttemptData extends Data
+class WorkflowTransitionAttemptData extends BeamData
 {
     public function __construct(
         public bool $applied,

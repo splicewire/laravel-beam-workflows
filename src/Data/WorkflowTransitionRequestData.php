@@ -4,7 +4,7 @@ namespace Splicewire\Beam\Workflows\Data;
 
 use Schemastud\DataSchemas\Attributes\Description;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
-use Splicewire\Beam\Data\Data;
+use Splicewire\Beam\Data\BeamData;
 
 /**
  * The `input:` shape a generic `#[ParticleOp(kind: OperationKind::Write)]` transition action accepts —
@@ -13,7 +13,7 @@ use Splicewire\Beam\Data\Data;
  * model reuses this same shape, same reason {@see WorkflowProjectionData} isn't beam-ux-specific either.
  */
 #[TypeScript]
-class WorkflowTransitionRequestData extends Data
+class WorkflowTransitionRequestData extends BeamData
 {
     public function __construct(
         // Described on the attribute rather than only in the class docblock above: `JsonSchemaGenerator`

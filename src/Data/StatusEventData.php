@@ -4,7 +4,7 @@ namespace Splicewire\Beam\Workflows\Data;
 
 use Spatie\Activitylog\Contracts\Activity;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
-use Splicewire\Beam\Data\Data;
+use Splicewire\Beam\Data\BeamData;
 
 /**
  * One row of a persisted ADR-0098 Display timeline — the READ twin of
@@ -26,7 +26,7 @@ use Splicewire\Beam\Data\Data;
  * declaration (particle-contribution-seam ticket 15).
  */
 #[TypeScript]
-class StatusEventData extends Data
+class StatusEventData extends BeamData
 {
     public function __construct(
         public string $id,

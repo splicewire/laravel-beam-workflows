@@ -3,7 +3,7 @@
 namespace Splicewire\Beam\Workflows\Data;
 
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
-use Splicewire\Beam\Data\Data;
+use Splicewire\Beam\Data\BeamData;
 
 /**
  * One transition of a workflow definition, as data (beam-workflows v2). `from`/`to` are always
@@ -11,7 +11,7 @@ use Splicewire\Beam\Data\Data;
  * catalog — never inline logic.
  */
 #[TypeScript]
-class WorkflowTransitionData extends Data
+class WorkflowTransitionData extends BeamData
 {
     public function __construct(
         public string $name,

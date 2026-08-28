@@ -3,7 +3,7 @@
 namespace Splicewire\Beam\Workflows\Data;
 
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
-use Splicewire\Beam\Data\Data;
+use Splicewire\Beam\Data\BeamData;
 
 /**
  * A type→workflow binding (beam-workflows v2 tickets 02/09): the `typeKey` this governs, the
@@ -11,7 +11,7 @@ use Splicewire\Beam\Data\Data;
  * is the generic unmanaged fallback.
  */
 #[TypeScript]
-class WorkflowBindingData extends Data
+class WorkflowBindingData extends BeamData
 {
     public function __construct(
         public string $typeKey,

@@ -3,7 +3,7 @@
 namespace Splicewire\Beam\Workflows\Data;
 
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
-use Splicewire\Beam\Data\Data;
+use Splicewire\Beam\Data\BeamData;
 
 /**
  * How many live records are pinned to one workflow definition version (beam-workflows v2 — the
@@ -11,7 +11,7 @@ use Splicewire\Beam\Data\Data;
  * immutable version of the graph.
  */
 #[TypeScript]
-class WorkflowCoverageVersionData extends Data
+class WorkflowCoverageVersionData extends BeamData
 {
     public function __construct(
         public string $id,

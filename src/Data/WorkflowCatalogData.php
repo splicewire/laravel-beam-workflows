@@ -3,14 +3,14 @@
 namespace Splicewire\Beam\Workflows\Data;
 
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
-use Splicewire\Beam\Data\Data;
+use Splicewire\Beam\Data\BeamData;
 
 /**
  * The editor's contract (beam-workflows v2 ticket 08): the WorkflowBlueprint JSON Schema the form
  * binds to, plus the guard catalog the guard picker renders.
  */
 #[TypeScript]
-class WorkflowCatalogData extends Data
+class WorkflowCatalogData extends BeamData
 {
     public function __construct(
         /** @var array<string, mixed> */

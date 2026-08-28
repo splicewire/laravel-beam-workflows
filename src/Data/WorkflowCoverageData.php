@@ -3,7 +3,7 @@
 namespace Splicewire\Beam\Workflows\Data;
 
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
-use Splicewire\Beam\Data\Data;
+use Splicewire\Beam\Data\BeamData;
 
 /**
  * Coverage for one workflow lineage (beam-workflows v2 — visibility): the total count of live
@@ -11,7 +11,7 @@ use Splicewire\Beam\Data\Data;
  * binding from "configured" into "demonstrably governing N records on version X".
  */
 #[TypeScript]
-class WorkflowCoverageData extends Data
+class WorkflowCoverageData extends BeamData
 {
     public function __construct(
         public string $lineageKey,

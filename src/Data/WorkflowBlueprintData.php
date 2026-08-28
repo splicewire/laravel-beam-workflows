@@ -3,7 +3,7 @@
 namespace Splicewire\Beam\Workflows\Data;
 
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
-use Splicewire\Beam\Data\Data;
+use Splicewire\Beam\Data\BeamData;
 
 /**
  * A workflow definition described as data (beam-workflows v2) — the shape the `<WorkflowEditor>`
@@ -11,7 +11,7 @@ use Splicewire\Beam\Data\Data;
  * guards ride the transitions as catalog references.
  */
 #[TypeScript]
-class WorkflowBlueprintData extends Data
+class WorkflowBlueprintData extends BeamData
 {
     public function __construct(
         public string $name,

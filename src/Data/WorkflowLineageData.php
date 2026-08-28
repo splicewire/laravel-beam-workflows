@@ -3,7 +3,7 @@
 namespace Splicewire\Beam\Workflows\Data;
 
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
-use Splicewire\Beam\Data\Data;
+use Splicewire\Beam\Data\BeamData;
 
 /**
  * A workflow definition lineage (beam-workflows v2 ticket 03): a stable identity owning ordered,
@@ -11,7 +11,7 @@ use Splicewire\Beam\Data\Data;
  * default a tenant may adopt or fork.
  */
 #[TypeScript]
-class WorkflowLineageData extends Data
+class WorkflowLineageData extends BeamData
 {
     public function __construct(
         public string $key,

@@ -3,7 +3,7 @@
 namespace Splicewire\Beam\Workflows\Data;
 
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
-use Splicewire\Beam\Data\Data;
+use Splicewire\Beam\Data\BeamData;
 
 /**
  * The model-blind definition projection the runtime `<WorkflowStepper>` renders (beam-workflows v2
@@ -12,7 +12,7 @@ use Splicewire\Beam\Data\Data;
  * hardcoded list.
  */
 #[TypeScript]
-class WorkflowProjectionData extends Data
+class WorkflowProjectionData extends BeamData
 {
     public function __construct(
         public string $type,

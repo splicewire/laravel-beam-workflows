@@ -7,7 +7,7 @@ use Rushing\DataFilters\Attributes\Sortable;
 use Rushing\DataFilters\Operators\Exact;
 use Schemastud\Frame\Attributes\Column;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
-use Splicewire\Beam\Data\Data;
+use Splicewire\Beam\Data\BeamData;
 use Splicewire\Beam\Particle\Attributes\ParticleResource;
 use Splicewire\Beam\Workflows\Awaiting\WorkflowAwaiting;
 
@@ -41,7 +41,7 @@ use Splicewire\Beam\Workflows\Awaiting\WorkflowAwaiting;
     readOnly: true,
 )]
 #[TypeScript]
-class WorkflowAwaitingRowData extends Data
+class WorkflowAwaitingRowData extends BeamData
 {
     public function __construct(
         public string $id,
