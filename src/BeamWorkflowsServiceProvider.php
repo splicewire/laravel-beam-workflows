@@ -211,14 +211,33 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
     {
         $this->registerStateMachineNode();
 
-        // Declaring and indexing are two acts (registry-kernel 21 D1). The type catalog declares
-        // `beam.workflows.types`; this is where that root becomes routable. Described unconditionally
-        // and possibly EMPTY — a host that governs nothing still owns the branch, which is 04 D1's rule
+        // Declaring and indexing are two acts (registry-kernel 21 D1). Each of these classes declares
+        // its own root; this is where those roots become routable. Described unconditionally and
+        // possibly EMPTY — a host that governs nothing still owns the branch, which is 04 D1's rule
         // that a package's registration must not be present-or-absent by host composition.
-        $this->app->make(RegistryIndex::class)->describe(
-            $this->app->make(WorkflowTypeRegistry::class),
-            by: self::class,
-        );
+        //
+        // The whole package's public keyspace lands here in ONE loop rather than one call per seam:
+        // the gate ratchets a package that describes one registry into describing all of them, so a
+        // seam added later is meant to be a line in this list and nothing else (registry-kernel 38).
+        // `WorkflowInvocableRegistry` is the one exception and only because it is described further
+        // down, beside the node registration that fills it.
+        $index = $this->app->make(RegistryIndex::class);
+
+        foreach ([
+            WorkflowTypeRegistry::class,
+            WorkflowRegistry::class,
+            WorkflowBindingRegistry::class,
+            GuardRegistry::class,
+            TransitionEffectRegistry::class,
+            SubjectResolverRegistry::class,
+        ] as $registry) {
+            $index->describe($this->app->make($registry), by: self::class);
+        }
+
+        // NOTE the ordering: `registerAwaitingSeam()` writes the one package-owned effect into the
+        // effect catalog, and it runs AFTER the describe above deliberately. Describing forces the
+        // singleton to construct but never reads it, so an entry written later is still routable —
+        // the index holds the registry, not a snapshot of it.
         $this->registerAwaitingSeam();
         $this->registerDoctorAudit();
 
