@@ -3,7 +3,6 @@
 namespace Splicewire\Beam\Workflows;
 
 use Psr\Log\LoggerInterface;
-use Rushing\Popcorn\Registries\RegistryIndex;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 use Splicewire\Beam\Doctor\BeamDoctorManifest;
@@ -211,18 +210,6 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
     {
         $this->registerStateMachineNode();
 
-        // Declaring and indexing are two acts (registry-kernel 21 D1). Each of these classes declares
-        // its own root; this is where those roots become routable. Described unconditionally and
-        // possibly EMPTY — a host that governs nothing still owns the branch, which is 04 D1's rule
-        // that a package's registration must not be present-or-absent by host composition.
-        //
-        // The whole package's public keyspace lands here in ONE loop rather than one call per seam:
-        // the gate ratchets a package that describes one registry into describing all of them, so a
-        // seam added later is meant to be a line in this list and nothing else (registry-kernel 38).
-        // `WorkflowInvocableRegistry` is the one exception and only because it is described further
-        // down, beside the node registration that fills it.
-        $index = $this->app->make(RegistryIndex::class);
-
         foreach ([
             WorkflowTypeRegistry::class,
             WorkflowRegistry::class,
@@ -231,7 +218,6 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
             TransitionEffectRegistry::class,
             SubjectResolverRegistry::class,
         ] as $registry) {
-            $index->describe($this->app->make($registry), by: self::class);
         }
 
         // NOTE the ordering: `registerAwaitingSeam()` writes the one package-owned effect into the
@@ -313,7 +299,5 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
         $registry = $this->app->make(WorkflowInvocableRegistry::class)
             ->register($this->app->make(WorkflowApplyInvocable::class));
 
-        // An owner registers DOWN into the index from its own boot; the index never reaches up.
-        $this->app->make(RegistryIndex::class)->describe($registry);
     }
 }
