@@ -37,7 +37,7 @@ it('is registered as a read-only #[ParticleResource] keyed workflow-awaiting', f
     $resource = Splicewire\Beam\Particle\Attributes\AttributedParticleDiscovery::resourceFromAttribute(WorkflowAwaitingRowData::class);
 
     expect($resource->key)->toBe('workflow-awaiting')
-        ->and($resource->model)->toBe(WorkflowAwaiting::class)
+        ->and($resource->backing)->toBe(WorkflowAwaiting::class)
         ->and($resource->readOnly)->toBeTrue()
         ->and($resource->project)->toBeNull();
 });
