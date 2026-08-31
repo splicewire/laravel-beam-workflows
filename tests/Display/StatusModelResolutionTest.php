@@ -14,6 +14,18 @@ use Splicewire\Beam\Workflows\Tests\Fixtures\FakeProcess;
  * projects a mapped subject's status into the mapped model; everything else stays on the default.
  */
 
+/*
+ * ⚠️ These set `beam.workflows.*`. Until 2026-08-31 they set `beam-workflows.*`, which is not a key
+ * anything reads: the provider registers `->hasConfigFile(['beam/workflows'])`, so the namespace is
+ * `beam.workflows`, and `StatusEmitter::resolveActivityModel()` reads exactly that.
+ *
+ * Two of the four tests FAILED on it, which is how it was found. The other two PASSED -- and that is
+ * the part worth remembering. Both assert a NEGATIVE ("an unmapped subject is not routed", "a global
+ * default applies"), and a config key nobody reads produces the same no-mapping state the negative
+ * expects. They were green for the entire time the feature they cover was unconfigurable by this
+ * suite. A test whose setup silently does nothing still passes whenever its expectation is "nothing
+ * happened."
+ */
 beforeEach(function () {
     if (! Schema::hasTable('alt_activity_log')) {
         Schema::create('alt_activity_log', function (Blueprint $table) {
@@ -31,7 +43,7 @@ beforeEach(function () {
 });
 
 it('routes a mapped subject status into the configured activity model', function () {
-    config(['beam-workflows.activity_models' => [FakeProcess::class => AltActivity::class]]);
+    config(['beam.workflows.activity_models' => [FakeProcess::class => AltActivity::class]]);
 
     $process = FakeProcess::create();
     Status::running($process, 'routed', ref: 'r:1', runId: 'run-1');
@@ -51,7 +63,7 @@ it('routes a mapped subject status into the configured activity model', function
 });
 
 it('falls back to the default activity model for unmapped subjects', function () {
-    config(['beam-workflows.activity_models' => ['App\\Nonexistent\\Other' => AltActivity::class]]);
+    config(['beam.workflows.activity_models' => ['App\\Nonexistent\\Other' => AltActivity::class]]);
 
     $process = FakeProcess::create();
     Status::complete($process, 'default path');
@@ -61,7 +73,7 @@ it('falls back to the default activity model for unmapped subjects', function ()
 });
 
 it('honors a global default activity model when no per-subject map matches', function () {
-    config(['beam-workflows.activity_model' => AltActivity::class]);
+    config(['beam.workflows.activity_model' => AltActivity::class]);
 
     $process = FakeProcess::create();
     Status::queued($process, 'global default');
@@ -71,7 +83,7 @@ it('honors a global default activity model when no per-subject map matches', fun
 });
 
 it('restores the ambient activity model after emitting (no leak across emits)', function () {
-    config(['beam-workflows.activity_models' => [FakeProcess::class => AltActivity::class]]);
+    config(['beam.workflows.activity_models' => [FakeProcess::class => AltActivity::class]]);
 
     $process = FakeProcess::create();
     Status::running($process, 'mapped');
