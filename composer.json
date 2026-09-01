@@ -32,7 +32,7 @@
     "require-dev": {
         "laravel/pint": "^1.0",
         "orchestra/testbench": "^9.0|^10.0",
-        "pestphp/pest": "^2.0|^3.0",
+        "pestphp/pest": "^4.0",
         "splicewire/laravel-circuit-engine": "@dev",
         "splicewire/laravel-circuit-spine": "@dev",
         "wikimedia/composer-merge-plugin": "^2.1"
