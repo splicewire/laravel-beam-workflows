@@ -31,6 +31,7 @@ use Splicewire\Beam\Workflows\Definition\DefinitionStore;
 use Splicewire\Beam\Workflows\Display\StatusEmitter;
 use Splicewire\Beam\Workflows\Display\StatusManager;
 use Splicewire\Beam\Workflows\Doctor\BeamWorkflowsMigrationsAudit;
+use Splicewire\Beam\Workflows\Doctor\MultiPlaceMarkingAudit;
 use Splicewire\Beam\Workflows\Migration\MarkingMigrator;
 use Splicewire\Beam\Workflows\Type\SchemaTypeProjector;
 use Splicewire\Beam\Workflows\Type\TypeIdentityResolver;
@@ -248,13 +249,26 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
      */
     private function registerDoctorAudit(): void
     {
-        if ($this->app->bound(BeamDoctorManifest::class)) {
-            $this->app->make(BeamDoctorManifest::class)->register(
-                package: 'splicewire/laravel-beam-workflows',
-                audit: BeamWorkflowsMigrationsAudit::class,
-                gate: false,
-            );
+        if (! $this->app->bound(BeamDoctorManifest::class)) {
+            return;
         }
+
+        $manifest = $this->app->make(BeamDoctorManifest::class);
+
+        $manifest->register(
+            package: 'splicewire/laravel-beam-workflows',
+            audit: BeamWorkflowsMigrationsAudit::class,
+            gate: false,
+        );
+
+        // Advisory, never a gate: the population is the HOST's blueprint registry, and a multi-place
+        // blueprint is legal on the node seam — it is unpersistable only by a lifecycle. See the
+        // audit's own class docblock for why the check does not live in BlueprintValidator.
+        $manifest->register(
+            package: 'splicewire/laravel-beam-workflows',
+            audit: MultiPlaceMarkingAudit::class,
+            gate: false,
+        );
     }
 
     /**

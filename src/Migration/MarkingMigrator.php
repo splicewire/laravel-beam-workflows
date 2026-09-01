@@ -27,6 +27,14 @@ use Splicewire\Beam\Workflows\Type\Contracts\WorkflowManaged;
  * The migrator is model-blind: the HOST supplies the cohort (e.g. `Composition::where(
  * 'workflow_version', $fromId)->get()`), so the package needs no type→model registry. An artisan
  * command / UI action is a thin caller over this service.
+ *
+ * ITS 1:1 `oldPlace => newPlace` MAP IS CORRECT, NOT A TRUNCATION. A cohort member's marking is read
+ * out of a scalar status attribute and written back to one, because that is the whole of what a
+ * lifecycle can persist (see {@see \Splicewire\Beam\Workflows\Control\LifecycleService::unpersistable()}).
+ * There is therefore never a multi-place marking on this path to lose: an object could only hold one
+ * if something had already written it, and the lifecycle refuses to. A place a map does not cover
+ * blocks the WHOLE run rather than being silently skipped — the opposite failure mode from the one
+ * `project()` used to have — so this service already fails loudly by construction.
  */
 class MarkingMigrator
 {

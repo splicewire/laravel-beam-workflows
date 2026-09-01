@@ -5,6 +5,7 @@ namespace Splicewire\Beam\Workflows\Control;
 use BackedEnum;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Database\Eloquent\Model;
+use LogicException;
 use Splicewire\Beam\Workflows\Binding\Binding;
 use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
 use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
@@ -29,6 +30,15 @@ use Splicewire\Beam\Workflows\Type\TypeIdentityResolver;
  * or any {@see WorkflowManaged} model. An unmanaged object (no type key, or a type with no binding)
  * returns an un-applied {@see TransitionResult} carrying the reason — the generic fallback, never an
  * exception.
+ *
+ * SINGLE-PLACE PERSISTENCE IS THIS SEAM'S ONE HARD LIMIT. The engine computes multi-token
+ * (workflow-net) markings for real — {@see \Splicewire\Beam\Workflows\Bridge\WorkflowFactory} builds
+ * every workflow with `singleState: false` and {@see MarkingSubject} carries a list — but a LIFECYCLE
+ * projects that marking onto a scalar status attribute, which has room for exactly one place. A
+ * transition that would produce more is REFUSED here, with the reason in `blockers` and nothing
+ * written; see {@see self::unpersistable()}. It formerly wrote the first place and returned
+ * `applied: true`, discarding the rest in silence. Multi-token runs belong on the Control-seam node
+ * ({@see WorkflowApplyInvocable}), where the marking rides the port envelope and the host persists it.
  *
  * Version resolution is layered so it works both with the stored, versioned lineage (ticket 03) AND
  * the code-registered blueprint (v1 back-compat), in this order:
@@ -76,17 +86,74 @@ class LifecycleService
 
         [$blueprint, $binding, $versionId] = $resolved;
 
-        $from = $this->currentPlace($model, $blueprint);
-        $subject = MarkingSubject::fromPlaces([$from], $this->guardContext($binding, $params));
+        $from = $this->currentPlaces($model, $blueprint);
+
+        // The marking we would START from is already unpersistable (a blueprint declaring a
+        // multi-place `initial` against a model that has never been written). Refuse before running
+        // anything, rather than silently starting from its first place.
+        if (($blocker = $this->unpersistable($from, "the current marking of [{$transitionName}]'s subject")) !== null) {
+            return new TransitionResult(marking: $from, transition: $transitionName, applied: false, blockers: [$blocker]);
+        }
+
+        $subject = MarkingSubject::fromPlaces($from, $this->guardContext($binding, $params));
 
         $result = $this->runner->apply($blueprint, $subject, $transitionName, statusSubject: $model, context: $context);
 
-        if ($result->applied) {
-            $this->project($model, $result->marking, $versionId);
-            $this->react($model, $blueprint, $transitionName, [$from], $result->marking, $versionId, $context);
+        if (! $result->applied) {
+            return $result;
         }
 
+        // The move was legal and symfony mutated the THROWAWAY subject — the model is still
+        // untouched. If the resulting marking holds more than one place there is nowhere to put it
+        // (see {@see self::project()}), so the honest answer is a refusal, not a truncated write
+        // reported as success. Nothing is persisted and no effects fire.
+        if (($blocker = $this->unpersistable($result->marking, "the marking [{$transitionName}] produces")) !== null) {
+            return new TransitionResult(
+                marking: $from,
+                transition: $transitionName,
+                applied: false,
+                blockers: [$blocker],
+            );
+        }
+
+        $this->project($model, $result->marking, $versionId);
+        $this->react($model, $blueprint, $transitionName, $from, $result->marking, $versionId, $context);
+
         return $result;
+    }
+
+    /**
+     * The engine's ONE persistence constraint, stated once: a lifecycle projects its marking onto a
+     * scalar status attribute, so a marking holding more than one place has nowhere to go.
+     *
+     * This is a fact about the PACKAGE, not about a host — {@see \Splicewire\Beam\Workflows\Bridge\WorkflowFactory} builds every
+     * workflow with `singleState: false` and {@see MarkingSubject} carries a genuine list, because
+     * multi-place computation is real and correct on the Control-seam node path
+     * ({@see WorkflowApplyInvocable}), where the marking rides the port envelope and the host owns
+     * persistence. It is only THIS path — project-onto-a-column — that cannot represent it. So the
+     * constraint lives here, at the persistence seam, and deliberately not in
+     * {@see \Splicewire\Beam\Workflows\Blueprint\BlueprintValidator}, which would wrongly forbid a
+     * workflow-net that the node seam runs perfectly well.
+     *
+     * It surfaces as a BLOCKER rather than an exception because that is this seam's whole contract:
+     * a caller branches on `applied` and never catches (see {@see TransitionResult}). What it must
+     * never do again is what it did before — write `$marking[0]` and return `applied: true`, which
+     * discarded every place after the first with no exception and no log.
+     *
+     * @param  list<string>  $places
+     * @return string|null a human-readable blocker, or null when the marking is persistable
+     */
+    protected function unpersistable(array $places, string $subject): ?string
+    {
+        if (count($places) <= 1) {
+            return null;
+        }
+
+        return "This workflow is multi-token: {$subject} holds ".count($places).' places ['
+            .implode(', ', $places).'], and a lifecycle persists a marking onto a single scalar status '
+            .'attribute. Nothing was written. Either narrow the blueprint so the transition produces one '
+            .'place, or drive this workflow through the Control-seam node, where the marking rides the '
+            .'port envelope and the host owns persistence.';
     }
 
     /**
@@ -167,7 +234,7 @@ class LifecycleService
         [$blueprint, $binding] = $resolved;
 
         $subject = MarkingSubject::fromPlaces(
-            [$this->currentPlace($model, $blueprint)],
+            $this->currentPlaces($model, $blueprint),
             $this->guardContext($binding, $params),
         );
 
@@ -269,13 +336,30 @@ class LifecycleService
     }
 
     /**
-     * Project a successful marking back onto the model: the (single) place onto the status
-     * attribute, the resolved version onto the pin (if any), then persist.
+     * Project a successful marking back onto the model: the single place onto the status attribute,
+     * the resolved version onto the pin (if any), then persist.
+     *
+     * SINGLE-PLACE BY CONSTRUCTION, and it raises rather than truncating. The status attribute is a
+     * scalar column, so this method has exactly one slot; it used to write `$marking[0]` and return,
+     * which silently discarded every further place while the transition still reported
+     * `applied: true`. Callers filter through {@see self::unpersistable()} before reaching here, so a
+     * multi-place marking arriving at this point is a broken caller — an invariant the author of a
+     * subclass could have gotten right — and it throws.
      *
      * @param  list<string>  $marking
+     *
+     * @throws \LogicException when handed a marking this seam cannot represent.
      */
     protected function project(Model $model, array $marking, ?string $versionId): void
     {
+        if (count($marking) > 1) {
+            throw new LogicException(
+                'LifecycleService::project() was handed a '.count($marking).'-place marking ['
+                .implode(', ', $marking).']. A lifecycle persists onto a scalar status attribute and '
+                .'cannot represent it; filter through unpersistable() before projecting.',
+            );
+        }
+
         $statusAttr = $model instanceof WorkflowManaged ? $model->workflowStatusAttribute() : 'status';
         $model->{$statusAttr} = $marking[0] ?? $this->currentPlace($model);
 
@@ -287,22 +371,40 @@ class LifecycleService
     }
 
     /**
-     * The model's current place as a plain string — the status attribute normalised (a backed enum
-     * yields its value), defaulting to the blueprint's initial place when the attribute is empty.
+     * The model's current marking as a LIST — the status attribute normalised (a backed enum yields
+     * its value), or the blueprint's whole initial marking when the attribute is empty.
+     *
+     * The list is what the read side actually needs. A stored status is always one place (a scalar
+     * column), but a blueprint's `initial` is declared as a list, and reading only its first element
+     * was the read-side twin of the write-side truncation: a multi-place `initial` started the
+     * subject in one place and nothing said so. Returning the full list lets
+     * {@see self::unpersistable()} see it and refuse.
+     *
+     * @return list<string>
      */
-    protected function currentPlace(Model $model, ?WorkflowBlueprint $blueprint = null): string
+    protected function currentPlaces(Model $model, ?WorkflowBlueprint $blueprint = null): array
     {
         $statusAttr = $model instanceof WorkflowManaged ? $model->workflowStatusAttribute() : 'status';
         $value = $model->{$statusAttr} ?? null;
 
         if ($value instanceof BackedEnum) {
-            return (string) $value->value;
+            return [(string) $value->value];
         }
 
         if ($value !== null && $value !== '') {
-            return (string) $value;
+            return [(string) $value];
         }
 
-        return $blueprint->initialMarking[0] ?? 'draft';
+        return $blueprint?->initialMarking ?: ['draft'];
+    }
+
+    /**
+     * The model's current place as a plain string — the first place of {@see self::currentPlaces()}.
+     * Kept for the scalar read surfaces (`projection()['current']`, the unmanaged fallback), which
+     * describe a single-place lifecycle by contract.
+     */
+    protected function currentPlace(Model $model, ?WorkflowBlueprint $blueprint = null): string
+    {
+        return $this->currentPlaces($model, $blueprint)[0] ?? 'draft';
     }
 }
