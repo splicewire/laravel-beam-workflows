@@ -127,19 +127,30 @@ class StatusEmitter
      * is a `subject-class => activity-model-class` map (matched by `instanceof`, so a subclass or
      * interface key works); `beam.workflows.activity_model` is a global default. Null = spatie's own
      * configured default (the tenant-swapped `activity_log`), i.e. no swap.
+     *
+     * The walk itself moved to {@see ActivityResidency} so the READ side can ask the same question of
+     * the same map. It used to live here as a private method, which is why the `activity` particle
+     * resource froze `CentralActivityLog` into its backing and could not see a tenant's own rows
+     * (particle-manifest-repatriation ticket 09). Behaviour here is unchanged — this method is now a
+     * one-line delegation, kept rather than inlined at the call site because it is `protected` and
+     * `laravel-satellite-training`'s progress test subclasses this emitter.
+     *
+     * Resolved per emit, not per emitter: this class is a singleton, and the map is config a host may
+     * legitimately change between requests (and a test between cases).
      */
     protected function resolveActivityModel(?Model $subject): ?string
     {
-        if ($subject !== null) {
-            $map = $this->config->get('beam.workflows.activity_models', []);
-            foreach ($map as $subjectClass => $activityModel) {
-                if ($subject instanceof $subjectClass) {
-                    return $activityModel;
-                }
-            }
-        }
+        return $this->residency()->forSubject($subject);
+    }
 
-        return $this->config->get('beam.workflows.activity_model');
+    /**
+     * The shared residency reader. Built from this emitter's OWN config repository rather than
+     * container-resolved, so a caller that hands the emitter a scratch `Repository` (as the display
+     * tests do) gets a residency reading that same repository instead of the ambient one.
+     */
+    protected function residency(): ActivityResidency
+    {
+        return new ActivityResidency($this->config);
     }
 
     /**
