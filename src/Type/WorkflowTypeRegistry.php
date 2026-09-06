@@ -9,7 +9,6 @@ use Rushing\Popcorn\Registries\Gated;
 use Rushing\Popcorn\Registries\IsRegistry;
 use Rushing\Popcorn\Registries\OnDuplicate;
 use Rushing\Popcorn\Registries\Registry;
-use Rushing\Popcorn\Registries\RegistryArity;
 use Rushing\Popcorn\Registries\RegistryKey;
 use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
 
@@ -26,14 +25,9 @@ use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
  */
 #[IsRegistry(
     root: 'beam.workflows.types',
-    of: 'governable workflow types (key + label) for the admin dropdown',
-    arity: RegistryArity::RunAll,
-    onDuplicate: OnDuplicate::Supersede,
     entryType: 'string',
-    note: 'RunAll because the read that matters is the whole enumeration behind an admin dropdown — so '
-        .'keys() ordering is OBSERVABLE BY A USER, which is why registration order being guaranteed is not '
-        .'a detail here. The ENTRY is the human label; the type key is the address, which is why '
-        .'entryType is a plain string rather than a class.',
+    onDuplicate: OnDuplicate::Supersede,
+    description: 'Governable workflow types for the admin dropdown, displayed in registration order. Each type key addresses its human-readable label.',
     order: 31,
 )]
 class WorkflowTypeRegistry implements Gated, Registry

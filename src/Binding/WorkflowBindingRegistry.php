@@ -11,7 +11,6 @@ use Rushing\Popcorn\Registries\IsRegistry;
 use Rushing\Popcorn\Registries\Key;
 use Rushing\Popcorn\Registries\OnDuplicate;
 use Rushing\Popcorn\Registries\Registry;
-use Rushing\Popcorn\Registries\RegistryArity;
 use Rushing\Popcorn\Registries\RelativeUriKey;
 use Rushing\Popcorn\Registries\RegistryKey;
 use Splicewire\Beam\Workflows\Type\TypeIdentityResolver;
@@ -21,7 +20,7 @@ use Splicewire\Beam\Workflows\Type\TypeIdentityResolver;
  * type becomes *managed* — a binding row existing IS the enable; its absence IS the disable. There
  * is no boolean flag, no env var: the presence of a key here is the whole switch.
  *
- * **Pick-one arity**, declared not assumed: exactly one lifecycle governs one type. Re-binding a
+ * Exactly one lifecycle governs one type. Re-binding a
  * type REPLACES the prior binding (last write wins) and is logged, so a double-bind is observable
  * rather than a silent multi-bind. Multi-binding a type is a *different seam kind* the PRD defers.
  *
@@ -48,14 +47,9 @@ use Splicewire\Beam\Workflows\Type\TypeIdentityResolver;
  */
 #[IsRegistry(
     root: 'beam.workflows.bindings',
-    of: 'typeKey → Binding mappings (presence IS the enable), resolved by type',
-    arity: RegistryArity::PickOne,
     entryType: Binding::class,
     onDuplicate: OnDuplicate::Supersede,
-    note: 'Presence is the enable and absence is the disable, so an empty registry is meaningful state '
-        .'rather than a miss to paper over — which is why this is Optional and a read returns null. '
-        .'Type keys are a foreign identifier space (host `workflowType()` strings and projected schema '
-        .'types), so `Key`\'s grammar is a real constraint on them — see the class docblock.',
+    description: 'typeKey → Binding mappings (presence IS the enable), resolved by type. Presence is the enable and absence is the disable, so an empty registry is meaningful state rather than a miss to paper over — which is why this is Optional and a read returns null. Type keys are a foreign identifier space (host `workflowType()` strings and projected schema types), so `Key`\'s grammar is a real constraint on them — see the class docblock.',
     order: 32,
 )]
 class WorkflowBindingRegistry implements Forgettable, Gated, Registry
@@ -90,7 +84,7 @@ class WorkflowBindingRegistry implements Forgettable, Gated, Registry
     }
 
     /**
-     * Bind a type to a definition lineage (+ guard params). Pick-one arity: a second bind of the
+     * Bind a type to a definition lineage (+ guard params). A second bind of the
      * same type replaces the first and is logged — never silently accumulated.
      *
      * This port's own vocabulary, kept as sugar over {@see register()}: it is what every host, every
@@ -218,7 +212,7 @@ class WorkflowBindingRegistry implements Forgettable, Gated, Registry
         return $out;
     }
 
-    /** Log a pick-one replacement, which is the one thing `bind()` did beyond storing. */
+    /** Log a binding replacement, which is the one thing `bind()` did beyond storing. */
     protected function logReplacement(string $typeKey, mixed $entry): void
     {
         if ($this->logger === null || ! $entry instanceof Binding) {
@@ -229,7 +223,7 @@ class WorkflowBindingRegistry implements Forgettable, Gated, Registry
 
         if ($existing instanceof Binding) {
             $this->logger->info(
-                "Workflow binding for type [{$typeKey}] replaced (pick-one arity).",
+                "Workflow binding for type [{$typeKey}] replaced.",
                 ['from' => $existing->lineageRef, 'to' => $entry->lineageRef],
             );
         }

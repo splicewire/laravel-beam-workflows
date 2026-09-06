@@ -10,7 +10,6 @@ use Rushing\Popcorn\Registries\IsRegistry;
 use Rushing\Popcorn\Registries\Key;
 use Rushing\Popcorn\Registries\OnDuplicate;
 use Rushing\Popcorn\Registries\Registry;
-use Rushing\Popcorn\Registries\RegistryArity;
 use Rushing\Popcorn\Registries\RegistryKey;
 
 /**
@@ -47,13 +46,9 @@ use Rushing\Popcorn\Registries\RegistryKey;
  */
 #[IsRegistry(
     root: 'beam.workflows.guards',
-    of: 'transition guard callables by reference, with editor-menu catalog entries',
-    arity: RegistryArity::PickOne,
     entryType: 'callable',
     onDuplicate: OnDuplicate::Supersede,
-    note: 'entryType is `callable`, not an FQCN: the ENTRY is a `callable(object): (bool|string)` and '
-        .'hosts register closures, first-class callables and invokable objects interchangeably. The '
-        .'catalog entry beside it (name/label/paramsSchema) is display metadata, not a second entry.',
+    description: 'transition guard callables by reference, with editor-menu catalog entries. entryType is `callable`, not an FQCN: the ENTRY is a `callable(object): (bool|string)` and hosts register closures, first-class callables and invokable objects interchangeably. The catalog entry beside it (name/label/paramsSchema) is display metadata, not a second entry.',
     order: 33,
 )]
 class GuardRegistry implements Gated, Registry

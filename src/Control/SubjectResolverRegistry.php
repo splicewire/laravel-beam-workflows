@@ -10,7 +10,6 @@ use Rushing\Popcorn\Registries\IsRegistry;
 use Rushing\Popcorn\Registries\Key;
 use Rushing\Popcorn\Registries\OnDuplicate;
 use Rushing\Popcorn\Registries\Registry;
-use Rushing\Popcorn\Registries\RegistryArity;
 use Rushing\Popcorn\Registries\RegistryKey;
 
 /**
@@ -40,13 +39,9 @@ use Rushing\Popcorn\Registries\RegistryKey;
  */
 #[IsRegistry(
     root: 'beam.workflows.subject-resolvers',
-    of: 'subject finders by kind slug (id → model) for generic actuation',
-    arity: RegistryArity::PickOne,
     entryType: 'callable',
     onDuplicate: OnDuplicate::Supersede,
-    note: 'entryType is `callable`: the ENTRY is a `callable(string): ?Model` a host closes over its '
-        .'own query with. resolve() with an $id INVOKES it rather than returning it — see the class '
-        .'docblock for why one method carries both readings.',
+    description: 'subject finders by kind slug (id → model) for generic actuation. entryType is `callable`: the ENTRY is a `callable(string): ?Model` a host closes over its own query with. resolve() with an $id INVOKES it rather than returning it — see the class docblock for why one method carries both readings.',
     order: 35,
 )]
 class SubjectResolverRegistry implements Gated, Registry

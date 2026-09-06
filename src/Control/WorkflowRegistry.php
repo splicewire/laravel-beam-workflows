@@ -9,7 +9,6 @@ use Rushing\Popcorn\Registries\IsRegistry;
 use Rushing\Popcorn\Registries\Key;
 use Rushing\Popcorn\Registries\OnDuplicate;
 use Rushing\Popcorn\Registries\Registry;
-use Rushing\Popcorn\Registries\RegistryArity;
 use Rushing\Popcorn\Registries\RegistryKey;
 use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
 
@@ -32,13 +31,9 @@ use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
  */
 #[IsRegistry(
     root: 'beam.workflows.blueprints',
-    of: 'named workflow blueprints (state machines), resolved by name',
-    arity: RegistryArity::PickOne,
     entryType: WorkflowBlueprint::class,
     onDuplicate: OnDuplicate::Supersede,
-    note: 'register() still accepts the array form and hydrates it through WorkflowBlueprint::fromArray(), '
-        .'so a host that declares a workflow as config data keeps working — the ENTRY is always a '
-        .'hydrated WorkflowBlueprint, never the raw array.',
+    description: 'named workflow blueprints (state machines), resolved by name. register() still accepts the array form and hydrates it through WorkflowBlueprint::fromArray(), so a host that declares a workflow as config data keeps working — the ENTRY is always a hydrated WorkflowBlueprint, never the raw array.',
     order: 30,
 )]
 class WorkflowRegistry implements Gated, Registry

@@ -10,7 +10,6 @@ use Rushing\Popcorn\Registries\IsRegistry;
 use Rushing\Popcorn\Registries\Key;
 use Rushing\Popcorn\Registries\OnDuplicate;
 use Rushing\Popcorn\Registries\Registry;
-use Rushing\Popcorn\Registries\RegistryArity;
 use Rushing\Popcorn\Registries\RegistryKey;
 use Splicewire\Beam\Workflows\Control\Events\WorkflowTransitioned;
 
@@ -35,13 +34,9 @@ use Splicewire\Beam\Workflows\Control\Events\WorkflowTransitioned;
  */
 #[IsRegistry(
     root: 'beam.workflows.effects',
-    of: 'post-transition effect callables by reference, with catalog entries',
-    arity: RegistryArity::PickOne,
     entryType: 'callable',
     onDuplicate: OnDuplicate::Supersede,
-    note: 'entryType is `callable`, not an FQCN: the ENTRY is a '
-        .'`callable(WorkflowTransitioned, array): void` and hosts register closures and invokable '
-        .'objects (`AwaitEffect`) interchangeably at the same key.',
+    description: 'post-transition effect callables by reference, with catalog entries. entryType is `callable`, not an FQCN: the ENTRY is a `callable(WorkflowTransitioned, array): void` and hosts register closures and invokable objects (`AwaitEffect`) interchangeably at the same key.',
     order: 34,
 )]
 class TransitionEffectRegistry implements Gated, Registry

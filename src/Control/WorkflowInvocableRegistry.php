@@ -7,7 +7,6 @@ use Rushing\Popcorn\InvocableRegistry;
 use Rushing\Popcorn\Registries\IsRegistry;
 use Rushing\Popcorn\Registries\OnDuplicate;
 use Rushing\Popcorn\Registries\Optionality;
-use Rushing\Popcorn\Registries\RegistryArity;
 
 /**
  * Workflows' own branch — `workflow.apply` and anything a host adds beside it.
@@ -29,13 +28,9 @@ use Rushing\Popcorn\Registries\RegistryArity;
  */
 #[IsRegistry(
     root: 'workflow',
-    of: 'workflow capabilities — the state-machine apply node, dispatched as a popcorn Invocable',
-    arity: RegistryArity::PickOne,
     entryType: Invocable::class,
     onDuplicate: OnDuplicate::Supersede,
     optionality: Optionality::Optional,
-    note: 'The capability NAME is host-configurable (`beam.workflows.node_capability`). A host that '
-        .'renames it outside this root has the root stamped back on, because keys go relative in and '
-        .'absolute out — a rename moves the leaf, never the branch.',
+    description: 'workflow capabilities — the state-machine apply node, dispatched as a popcorn Invocable. The capability NAME is host-configurable (`beam.workflows.node_capability`). A host that renames it outside this root has the root stamped back on, because keys go relative in and absolute out — a rename moves the leaf, never the branch.',
 )]
 class WorkflowInvocableRegistry extends InvocableRegistry {}
