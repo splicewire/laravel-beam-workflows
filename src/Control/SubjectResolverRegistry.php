@@ -8,7 +8,7 @@ use Rushing\Popcorn\Registries\BasicRegistry;
 use Rushing\Popcorn\Registries\Gated;
 use Rushing\Popcorn\Registries\IsRegistry;
 use Rushing\Popcorn\Registries\Key;
-use Rushing\Popcorn\Registries\OnDuplicate;
+use Rushing\Popcorn\Registries\OnKeyDuplicate;
 use Rushing\Popcorn\Registries\Registry;
 use Rushing\Popcorn\Registries\RegistryKey;
 
@@ -40,7 +40,7 @@ use Rushing\Popcorn\Registries\RegistryKey;
 #[IsRegistry(
     root: 'beam.workflows.subject-resolvers',
     entryType: 'callable',
-    onDuplicate: OnDuplicate::Supersede,
+    onKeyDuplicate: OnKeyDuplicate::Supersede,
     description: 'subject finders by kind slug (id → model) for generic actuation. entryType is `callable`: the ENTRY is a `callable(string): ?Model` a host closes over its own query with. resolve() with an $id INVOKES it rather than returning it — see the class docblock for why one method carries both readings.',
     order: 35,
 )]

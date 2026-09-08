@@ -7,7 +7,7 @@ use Rushing\Popcorn\Registries\BasicRegistry;
 use Rushing\Popcorn\Registries\Gated;
 use Rushing\Popcorn\Registries\IsRegistry;
 use Rushing\Popcorn\Registries\Key;
-use Rushing\Popcorn\Registries\OnDuplicate;
+use Rushing\Popcorn\Registries\OnKeyDuplicate;
 use Rushing\Popcorn\Registries\Registry;
 use Rushing\Popcorn\Registries\RegistryKey;
 use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
@@ -32,7 +32,7 @@ use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
 #[IsRegistry(
     root: 'beam.workflows.blueprints',
     entryType: WorkflowBlueprint::class,
-    onDuplicate: OnDuplicate::Supersede,
+    onKeyDuplicate: OnKeyDuplicate::Supersede,
     description: 'named workflow blueprints (state machines), resolved by name. register() still accepts the array form and hydrates it through WorkflowBlueprint::fromArray(), so a host that declares a workflow as config data keeps working — the ENTRY is always a hydrated WorkflowBlueprint, never the raw array.',
     order: 30,
 )]

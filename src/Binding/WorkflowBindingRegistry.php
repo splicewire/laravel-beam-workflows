@@ -9,7 +9,7 @@ use Rushing\Popcorn\Registries\Forgettable;
 use Rushing\Popcorn\Registries\Gated;
 use Rushing\Popcorn\Registries\IsRegistry;
 use Rushing\Popcorn\Registries\Key;
-use Rushing\Popcorn\Registries\OnDuplicate;
+use Rushing\Popcorn\Registries\OnKeyDuplicate;
 use Rushing\Popcorn\Registries\Registry;
 use Rushing\Popcorn\Registries\RelativeUriKey;
 use Rushing\Popcorn\Registries\RegistryKey;
@@ -48,7 +48,7 @@ use Splicewire\Beam\Workflows\Type\TypeIdentityResolver;
 #[IsRegistry(
     root: 'beam.workflows.bindings',
     entryType: Binding::class,
-    onDuplicate: OnDuplicate::Supersede,
+    onKeyDuplicate: OnKeyDuplicate::Supersede,
     description: 'typeKey → Binding mappings (presence IS the enable), resolved by type. Presence is the enable and absence is the disable, so an empty registry is meaningful state rather than a miss to paper over — which is why this is Optional and a read returns null. Type keys are a foreign identifier space (host `workflowType()` strings and projected schema types), so `Key`\'s grammar is a real constraint on them — see the class docblock.',
     order: 32,
 )]

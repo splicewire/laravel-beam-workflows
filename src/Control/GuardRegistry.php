@@ -8,7 +8,7 @@ use Rushing\Popcorn\Registries\BasicRegistry;
 use Rushing\Popcorn\Registries\Gated;
 use Rushing\Popcorn\Registries\IsRegistry;
 use Rushing\Popcorn\Registries\Key;
-use Rushing\Popcorn\Registries\OnDuplicate;
+use Rushing\Popcorn\Registries\OnKeyDuplicate;
 use Rushing\Popcorn\Registries\Registry;
 use Rushing\Popcorn\Registries\RegistryKey;
 
@@ -47,7 +47,7 @@ use Rushing\Popcorn\Registries\RegistryKey;
 #[IsRegistry(
     root: 'beam.workflows.guards',
     entryType: 'callable',
-    onDuplicate: OnDuplicate::Supersede,
+    onKeyDuplicate: OnKeyDuplicate::Supersede,
     description: 'transition guard callables by reference, with editor-menu catalog entries. entryType is `callable`, not an FQCN: the ENTRY is a `callable(object): (bool|string)` and hosts register closures, first-class callables and invokable objects interchangeably. The catalog entry beside it (name/label/paramsSchema) is display metadata, not a second entry.',
     order: 33,
 )]

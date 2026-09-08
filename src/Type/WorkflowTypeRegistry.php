@@ -7,7 +7,7 @@ use Rushing\Popcorn\Registries\Authorizer;
 use Rushing\Popcorn\Registries\BasicRegistry;
 use Rushing\Popcorn\Registries\Gated;
 use Rushing\Popcorn\Registries\IsRegistry;
-use Rushing\Popcorn\Registries\OnDuplicate;
+use Rushing\Popcorn\Registries\OnKeyDuplicate;
 use Rushing\Popcorn\Registries\Registry;
 use Rushing\Popcorn\Registries\RegistryKey;
 use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
@@ -26,7 +26,7 @@ use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
 #[IsRegistry(
     root: 'beam.workflows.types',
     entryType: 'string',
-    onDuplicate: OnDuplicate::Supersede,
+    onKeyDuplicate: OnKeyDuplicate::Supersede,
     description: 'Governable workflow types for the admin dropdown, displayed in registration order. Each type key addresses its human-readable label.',
     order: 31,
 )]
