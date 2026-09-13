@@ -1,5 +1,7 @@
 <?php
 
+use Rushing\Popcorn\Registries\Exceptions\InvalidRegistryKey;
+use Rushing\Popcorn\Registries\RelativeUriKey;
 use Splicewire\Beam\Workflows\Binding\Binding;
 use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
 use Splicewire\Beam\Workflows\Type\Concerns\WorkflowManaged as WorkflowManagedTrait;
@@ -89,4 +91,52 @@ it('unbinding a type returns it to unmanaged', function () {
 
 it('is registered as a singleton in the container', function () {
     expect(app(WorkflowBindingRegistry::class))->toBe(app(WorkflowBindingRegistry::class));
+});
+
+it('reads, replaces and removes a dotted host workflow binding', function () {
+    $registry = new WorkflowBindingRegistry;
+    $registry->bind('anchor.review', 'anchor.review.v1');
+
+    expect($registry->has('anchor.review'))->toBeTrue()
+        ->and($registry->for('anchor.review')->lineageRef)->toBe('anchor.review.v1')
+        ->and($registry->tryResolve('beam.workflows.bindings.anchor.review'))->toBe($registry->for('anchor.review'));
+
+    $registry->bind('anchor.review', 'anchor.review.v2');
+
+    expect($registry->all())->toHaveCount(1)
+        ->and($registry->for('anchor.review')->lineageRef)->toBe('anchor.review.v2');
+
+    $registry->unbind('anchor.review');
+
+    expect($registry->has('anchor.review'))->toBeFalse()
+        ->and($registry->for('anchor.review'))->toBeNull()
+        ->and($registry->keys())->toBe([]);
+});
+
+it('tolerates malformed string reads while rejecting their registration', function (string $key) {
+    $registry = new WorkflowBindingRegistry;
+    $registry->bind('composition', 'composition.lifecycle');
+
+    expect($registry->has($key))->toBeFalse()
+        ->and($registry->for($key))->toBeNull();
+
+    $registry->forget($key);
+
+    expect($registry->for('composition')->lineageRef)->toBe('composition.lifecycle');
+    expect(fn () => $registry->bind($key, 'invalid'))->toThrow(InvalidRegistryKey::class);
+})->with(['', 'anchor..review', 'acme/press-release']);
+
+it('preserves explicit URI registry keys through registration, reads and removal', function () {
+    $registry = new WorkflowBindingRegistry;
+    $key = RelativeUriKey::parse('acme/press-release');
+    $binding = new Binding('acme/press-release', 'press-release.lifecycle');
+    $registry->register($key, $binding);
+
+    expect($registry->has($key))->toBeTrue()
+        ->and($registry->tryResolve($key))->toBe($binding);
+
+    $registry->forget($key);
+
+    expect($registry->has($key))->toBeFalse()
+        ->and($registry->keys())->toBe([]);
 });

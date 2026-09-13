@@ -1,6 +1,5 @@
 <?php
 
-use Rushing\Popcorn\Registries\Nested;
 use Rushing\Popcorn\Registries\Registry;
 use Rushing\Popcorn\Registries\RegistryKey;
 use Rushing\Popcorn\Registries\RelativeUriKey;
@@ -34,7 +33,7 @@ it('implements the Registry contract', function (string $class) {
 })->with('rows');
 
 it('declares the root the gate expects', function (string $class, string $root) {
-    $attributes = (new ReflectionClass($class))->getAttributes(\Rushing\Popcorn\Registries\IsRegistry::class);
+    $attributes = (new ReflectionClass($class))->getAttributes(Rushing\Popcorn\Registries\IsRegistry::class);
 
     expect($attributes)->not->toBeEmpty()
         ->and($attributes[0]->newInstance()->root)->toBe($root);
@@ -61,7 +60,7 @@ it('returns RegistryKey objects from keys(), never bare strings', function (stri
 
 it('stamps its declared root onto a registered key', function () {
     $registry = app(WorkflowRegistry::class);
-    $registry->register('demo-flow', \Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint::fromArray([
+    $registry->register('demo-flow', Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint::fromArray([
         'name' => 'demo-flow',
         'places' => ['draft', 'live'],
         'transitions' => [],
@@ -71,12 +70,11 @@ it('stamps its declared root onto a registered key', function () {
 });
 
 /**
- * The row 58 D5 disposed of. A host type key is spelled `acme/press-release`, and `/` is not a `Key`
- * character — the guard the migration patch shipped used `Key::tryParse()` and therefore answered
- * FALSE for every real binding, making the registry unaddressable while dotted fixtures passed.
+ * A slash-spelled identifier can be represented by an explicit RelativeUriKey. This is a parser
+ * contract; WorkflowBindingRegistryTest covers registration and reads through the actual port.
  */
-it('addresses a slash-spelled host type key, which plain Key cannot express', function () {
-    expect(\Rushing\Popcorn\Registries\Key::tryParse('acme/press-release'))->toBeNull()
+it('parses a slash-spelled identifier into an explicit registry key', function () {
+    expect(Rushing\Popcorn\Registries\Key::tryParse('acme/press-release'))->toBeNull()
         ->and(RelativeUriKey::tryParse('acme/press-release'))->not->toBeNull()
         ->and(RelativeUriKey::parse('acme/press-release')->segments())->toBe(['acme', 'press-release']);
 });

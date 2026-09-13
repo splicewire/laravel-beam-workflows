@@ -11,7 +11,6 @@ use Rushing\Popcorn\Registries\IsRegistry;
 use Rushing\Popcorn\Registries\Key;
 use Rushing\Popcorn\Registries\OnKeyDuplicate;
 use Rushing\Popcorn\Registries\Registry;
-use Rushing\Popcorn\Registries\RelativeUriKey;
 use Rushing\Popcorn\Registries\RegistryKey;
 use Splicewire\Beam\Workflows\Type\TypeIdentityResolver;
 
@@ -232,17 +231,13 @@ class WorkflowBindingRegistry implements Forgettable, Gated, Registry
     /**
      * Whether `$key` can address anything here at all — an illegal key holds nothing.
      *
-     * ⚠️ Reads through {@see RelativeUriKey}, not {@see Key}, and that is registry-kernel 58 D5 rather
-     * than a widening. A host type key is spelled `acme/press-release`, and `/` is not a `Key`
-     * character — so the guard this replaced answered **false for every real binding**, quietly making
-     * the whole registry unaddressable while every test that used a dotted fixture passed. `Key` is
-     * still the floor: `RelativeUriKey` translates the slash into segments each of which must satisfy
-     * `Key`'s own grammar, so the widening is in what can be ADDRESSED, never in what a segment may
-     * contain — and the translation is lossless in both directions, which D5 made the requirement
-     * because the same string is the `kind` discriminator clients parse back.
+     * String reads follow the same {@see Key} grammar as {@see BasicRegistry}'s registration door.
+     * In particular, a dotted host type such as `anchor.review` must remain readable after binding.
+     * Explicit {@see RegistryKey} objects keep their own addressing semantics; a raw slash string
+     * is not translated here, just as it is not translated when registered.
      */
     protected function addressable(RegistryKey|string $key): bool
     {
-        return ! is_string($key) || RelativeUriKey::tryParse($key) !== null;
+        return ! is_string($key) || Key::tryParse($key) !== null;
     }
 }
