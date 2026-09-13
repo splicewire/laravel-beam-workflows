@@ -33,12 +33,14 @@
         "laravel/pint": "^1.0",
         "orchestra/testbench": "^9.0|^10.0",
         "pestphp/pest": "^4.0",
+        "splicewire/laravel-beam-calendars": "@dev",
         "splicewire/laravel-circuit-engine": "@dev",
         "splicewire/laravel-circuit-spine": "@dev",
         "wikimedia/composer-merge-plugin": "^2.1"
     },
     "suggest": {
-        "splicewire/laravel-circuit-engine": "Enables the state-machine Circuit node type (Seam B): the local `workflow.apply` capability registers into the kernel's CapabilityManifest so a state machine slots into a Circuit graph. Without it, the Display substrate (Seam A) and the DefinitionBuilder still work standalone."
+        "splicewire/laravel-circuit-engine": "Enables the state-machine Circuit node type (Seam B): the local `workflow.apply` capability registers into the kernel's CapabilityManifest so a state machine slots into a Circuit graph. Without it, the Display substrate (Seam A) and the DefinitionBuilder still work standalone.",
+        "splicewire/laravel-beam-calendars": "Adds optional scheduled managed-subject workflow actions without Tower or a composition engine."
     },
     "autoload": {
         "psr-4": {

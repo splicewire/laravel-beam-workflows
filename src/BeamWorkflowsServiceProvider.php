@@ -81,6 +81,7 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
                 'tenant/create_workflow_bindings_table',
                 'tenant/create_workflow_awaitings_table',
                 'tenant/create_workflow_transition_facts_table',
+                'tenant/create_workflow_action_receipts_table',
             ]);
     }
 
@@ -211,6 +212,19 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
     public function packageBooted(): void
     {
         $this->registerStateMachineNode();
+
+        // Optional free-package integration. Calendar storage and defaults remain independent.
+        if (class_exists(\Splicewire\Beam\Calendars\Registries\ActionHandlerRegistry::class)) {
+            $this->callAfterResolving(\Splicewire\Beam\Calendars\Registries\ActionHandlerRegistry::class,
+                function ($registry): void {
+                    if (! $registry->has(Calendar\WorkflowActionHandler::KIND)) {
+                        $registry->register(
+                            Calendar\WorkflowActionHandler::KIND,
+                            Calendar\WorkflowActionHandler::class,
+                        );
+                    }
+                });
+        }
 
         foreach ([
             WorkflowTypeRegistry::class,
