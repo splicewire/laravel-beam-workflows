@@ -124,7 +124,7 @@ it('tolerates malformed string reads while rejecting their registration', functi
 
     expect($registry->for('composition')->lineageRef)->toBe('composition.lifecycle');
     expect(fn () => $registry->bind($key, 'invalid'))->toThrow(InvalidRegistryKey::class);
-})->with(['', 'anchor..review', 'acme/press-release']);
+})->with(['', 'anchor..review', 'acme//press-release', 'https://example.test/type']);
 
 it('preserves explicit URI registry keys through registration, reads and removal', function () {
     $registry = new WorkflowBindingRegistry;
@@ -139,4 +139,77 @@ it('preserves explicit URI registry keys through registration, reads and removal
 
     expect($registry->has($key))->toBeFalse()
         ->and($registry->keys())->toBe([]);
+});
+
+it('preserves slash-spelled workflow identities through the complete binding lifecycle', function () {
+    $registry = new WorkflowBindingRegistry;
+    $registry->bind('acme/press-release', 'press-release.v1', ['review' => true]);
+    $binding = $registry->for('acme/press-release');
+
+    expect($registry->has('acme/press-release'))->toBeTrue()
+        ->and($binding->typeKey)->toBe('acme/press-release')
+        ->and($binding->toArray()['typeKey'])->toBe('acme/press-release')
+        ->and($registry->resolve('acme/press-release'))->toBe($binding)
+        ->and($registry->tryResolve('beam.workflows.bindings.acme.press-release'))->toBe($binding)
+        ->and($registry->matches('acme/press-release'))->toBe([$binding])
+        ->and($registry->all())->toBe(['acme/press-release' => $binding])
+        ->and($registry->unfiltered()->resolve('acme/press-release'))->toBe($binding);
+
+    $subject = new class implements WorkflowManaged
+    {
+        use WorkflowManagedTrait;
+
+        public function workflowType(): string
+        {
+            return 'acme/press-release';
+        }
+    };
+    expect($registry->forObject($subject, new TypeIdentityResolver(new SchemaTypeProjector)))->toBe($binding);
+
+    $registry->bind('acme/press-release', 'press-release.v2');
+    expect($registry->all())->toHaveCount(1)
+        ->and($registry->for('acme/press-release')->lineageRef)->toBe('press-release.v2');
+
+    $registry->unbind('acme/press-release');
+    expect($registry->has('acme/press-release'))->toBeFalse()
+        ->and($registry->for('acme/press-release'))->toBeNull()
+        ->and($registry->keys())->toBe([]);
+});
+
+it('logs replacement under the original slash-spelled type identity', function () {
+    $logger = Mockery::mock(Psr\Log\LoggerInterface::class);
+    $logger->shouldReceive('info')->once()->with(
+        'Workflow binding for type [acme/press-release] replaced.',
+        ['from' => 'press-release.v1', 'to' => 'press-release.v2'],
+    );
+    $registry = new WorkflowBindingRegistry($logger);
+    $registry->bind('acme/press-release', 'press-release.v1');
+    $registry->bind('acme/press-release', 'press-release.v2');
+
+    expect($registry->for('acme/press-release')->typeKey)->toBe('acme/press-release');
+});
+
+it('keeps authorization and unfiltered reads consistent for slash identities', function () {
+    $registry = new WorkflowBindingRegistry;
+    $binding = new Binding('acme/press-release', 'press-release.lifecycle');
+    $registry->register('acme/press-release', $binding, by: 'host', ability: 'workflow.view');
+    $registry->authorizeWith(new class implements Rushing\Popcorn\Registries\Authorizer
+    {
+        public function allows(string $ability, Rushing\Popcorn\Registries\RegistryKey $key): bool
+        {
+            return false;
+        }
+    });
+
+    expect($registry->has('acme/press-release'))->toBeFalse()
+        ->and($registry->for('acme/press-release'))->toBeNull()
+        ->and($registry->all())->toBe([]);
+
+    $unfiltered = $registry->unfiltered();
+    expect($unfiltered->resolve('acme/press-release'))->toBe($binding)
+        ->and($unfiltered->keys())->toHaveCount(1)
+        ->and($registry->has('acme/press-release'))->toBeFalse();
+
+    $registry->forgetBy('host');
+    expect($registry->unfiltered()->keys())->toBe([]);
 });

@@ -12,6 +12,7 @@ use Rushing\Popcorn\Registries\Key;
 use Rushing\Popcorn\Registries\OnKeyDuplicate;
 use Rushing\Popcorn\Registries\Registry;
 use Rushing\Popcorn\Registries\RegistryKey;
+use Rushing\Popcorn\Registries\RelativeUriKey;
 use Splicewire\Beam\Workflows\Type\TypeIdentityResolver;
 
 /**
@@ -33,14 +34,11 @@ use Splicewire\Beam\Workflows\Type\TypeIdentityResolver;
  * `forget()` — this registry is torn down and re-hydrated per tenant by the host, which is exactly
  * the case `Forgettable` exists for.
  *
- * ⚠️ **The type keys are a FOREIGN identifier space and `Key`'s grammar now polices it.** Every key
- * live in the estate is legal (`composition`, `anchor.review`, `role_assignment`, `page`), but
- * tower's bind endpoint documents type keys as possibly *"a schema identifier [that] may contain
- * slashes"* — and `/` is not a registry-key character. Nothing produces such a key today (the
- * `SchemaTypeProjector` is the mapping point and defaults to disowning unmapped schema types), so
- * this is a latent constraint, not a live break: the projector is where a schema identity must be
- * mapped onto a legal workflow-type key. READS tolerate an illegal key as a miss; a WRITE with one
- * fails loudly rather than storing an entry no read could ever address.
+ * Type identities keep their host spelling: both `anchor.review` and `acme/press-release` are
+ * addressable. Registry-kernel 58 D5 keeps `workflowType()` and the schema projector unchanged;
+ * {@see RelativeUriKey} translates slash-separated identities only at this registry's door. The
+ * {@see Binding} retains the original type key for the admin wire and object identity resolution.
+ * Malformed string reads are misses; malformed writes fail loudly.
  *
  * @implements Registry<Binding>
  */
@@ -48,7 +46,7 @@ use Splicewire\Beam\Workflows\Type\TypeIdentityResolver;
     root: 'beam.workflows.bindings',
     entryType: Binding::class,
     onKeyDuplicate: OnKeyDuplicate::Supersede,
-    description: 'typeKey → Binding mappings (presence IS the enable), resolved by type. Presence is the enable and absence is the disable, so an empty registry is meaningful state rather than a miss to paper over — which is why this is Optional and a read returns null. Type keys are a foreign identifier space (host `workflowType()` strings and projected schema types), so `Key`\'s grammar is a real constraint on them — see the class docblock.',
+    description: 'typeKey → Binding mappings (presence IS the enable), resolved by type. Presence is the enable and absence is the disable, so an empty registry is meaningful state rather than a miss to paper over — which is why this is Optional and a read returns null. Type keys are a foreign identifier space (host `workflowType()` strings and projected schema types), whose dotted or slash-separated spelling is preserved — see the class docblock.',
     order: 32,
 )]
 class WorkflowBindingRegistry implements Forgettable, Gated, Registry
@@ -77,7 +75,7 @@ class WorkflowBindingRegistry implements Forgettable, Gated, Registry
 
         $this->logReplacement((string) $key, $entry);
 
-        $this->entries->register($key, $entry, $by, $ability);
+        $this->entries->register($this->requiredAddress($key), $entry, $by, $ability);
 
         return $this;
     }
@@ -107,8 +105,8 @@ class WorkflowBindingRegistry implements Forgettable, Gated, Registry
 
     public function forget(RegistryKey|string $key): static
     {
-        if ($this->addressable($key)) {
-            $this->entries->forget($key);
+        if (($address = $this->address($key)) !== null) {
+            $this->entries->forget($address);
         }
 
         return $this;
@@ -128,7 +126,7 @@ class WorkflowBindingRegistry implements Forgettable, Gated, Registry
      */
     public function has(RegistryKey|string $key): bool
     {
-        return $this->addressable($key) && $this->entries->has($key);
+        return ($address = $this->address($key)) !== null && $this->entries->has($address);
     }
 
     /**
@@ -142,18 +140,18 @@ class WorkflowBindingRegistry implements Forgettable, Gated, Registry
 
     public function resolve(RegistryKey|string $key): mixed
     {
-        return $this->entries->resolve($key);
+        return $this->entries->resolve($this->requiredAddress($key));
     }
 
     public function tryResolve(RegistryKey|string $key): mixed
     {
-        return $this->addressable($key) ? $this->entries->tryResolve($key) : null;
+        return ($address = $this->address($key)) !== null ? $this->entries->tryResolve($address) : null;
     }
 
     /** @return list<Binding> */
     public function matches(RegistryKey|string $key): array
     {
-        return $this->entries->matches($key);
+        return $this->entries->matches($this->requiredAddress($key));
     }
 
     /** @return list<RegistryKey> */
@@ -164,7 +162,10 @@ class WorkflowBindingRegistry implements Forgettable, Gated, Registry
 
     public function unfiltered(): Registry
     {
-        return $this->entries->unfiltered();
+        $unfiltered = clone $this;
+        $unfiltered->entries = $this->entries->unfiltered();
+
+        return $unfiltered;
     }
 
     public function authorizeWith(?Authorizer $authorizer): static
@@ -194,9 +195,8 @@ class WorkflowBindingRegistry implements Forgettable, Gated, Registry
     /**
      * Every registered binding, keyed by type — the source for the Workflows admin surface (09).
      *
-     * Rebuilt from `relativeKeys()`, so the keys are the bare type keys a host wrote (not
-     * `beam.workflows.bindings.*`) and the order is registration order rather than a PHP array's
-     * insertion order that happened to coincide with it.
+     * The entry retains the host's type spelling, including slashes. Enumerate through the held
+     * registry so authorization and registration order still govern this projection.
      *
      * @return array<string, Binding>
      */
@@ -204,8 +204,9 @@ class WorkflowBindingRegistry implements Forgettable, Gated, Registry
     {
         $out = [];
 
-        foreach ($this->entries->relativeKeys() as $typeKey) {
-            $out[$typeKey] = $this->entries->resolve($typeKey);
+        foreach ($this->entries->keys() as $key) {
+            $binding = $this->entries->resolve($key);
+            $out[$binding->typeKey] = $binding;
         }
 
         return $out;
@@ -228,16 +229,17 @@ class WorkflowBindingRegistry implements Forgettable, Gated, Registry
         }
     }
 
-    /**
-     * Whether `$key` can address anything here at all — an illegal key holds nothing.
-     *
-     * String reads follow the same {@see Key} grammar as {@see BasicRegistry}'s registration door.
-     * In particular, a dotted host type such as `anchor.review` must remain readable after binding.
-     * Explicit {@see RegistryKey} objects keep their own addressing semantics; a raw slash string
-     * is not translated here, just as it is not translated when registered.
-     */
-    protected function addressable(RegistryKey|string $key): bool
+    /** Resolve the host spelling without changing the type identity carried by its binding. */
+    protected function address(RegistryKey|string $key): ?RegistryKey
     {
-        return ! is_string($key) || Key::tryParse($key) !== null;
+        return is_string($key)
+            ? (Key::tryParse($key) ?? RelativeUriKey::tryParse($key))
+            : $key;
+    }
+
+    /** Strict registry operations retain the kernel's invalid-key exception. */
+    protected function requiredAddress(RegistryKey|string $key): RegistryKey
+    {
+        return $this->address($key) ?? Key::of($key);
     }
 }
