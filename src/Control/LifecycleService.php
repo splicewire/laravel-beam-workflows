@@ -9,6 +9,7 @@ use LogicException;
 use Splicewire\Beam\Workflows\Binding\Binding;
 use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
 use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
+use Splicewire\Beam\Workflows\Control\Contracts\ProvidesGuardContext;
 use Splicewire\Beam\Workflows\Control\Events\WorkflowTransitioned;
 use Splicewire\Beam\Workflows\Definition\DefinitionStore;
 use Splicewire\Beam\Workflows\Type\Contracts\WorkflowManaged;
@@ -71,8 +72,27 @@ class LifecycleService
      */
     public function transition(Model $model, string $transitionName, array $params = [], ?TransitionContext $context = null): TransitionResult
     {
-        $context ??= new TransitionContext;
+        return $model->getConnection()->transaction(function () use ($model, $transitionName, $params, $context) {
+            if ($model->exists) {
+                $current = $model->newQuery()->whereKey($model->getKey())->lockForUpdate()->first();
+                if ($current === null) {
+                    return new TransitionResult([], $transitionName, false, ['The workflow subject no longer exists.']);
+                }
+                $model->setRawAttributes($current->getAttributes(), true);
+                $model->unsetRelations();
+            }
 
+            // Model-owned facts must be measured after the lock, never from a stale caller.
+            $currentParams = $model instanceof ProvidesGuardContext
+                ? array_merge($params, $model->workflowGuardContext())
+                : $params;
+
+            return $this->applyLocked($model, $transitionName, $currentParams, $context ?? new TransitionContext);
+        });
+    }
+
+    protected function applyLocked(Model $model, string $transitionName, array $params, TransitionContext $context): TransitionResult
+    {
         $resolved = $this->resolve($model);
 
         if ($resolved === null) {
@@ -97,7 +117,7 @@ class LifecycleService
 
         $subject = MarkingSubject::fromPlaces($from, $this->guardContext($binding, $params));
 
-        $result = $this->runner->apply($blueprint, $subject, $transitionName, statusSubject: $model, context: $context);
+        $result = $this->runner->apply($blueprint, $subject, $transitionName, statusSubject: $model, context: $context, emitStatus: false);
 
         if (! $result->applied) {
             return $result;
@@ -117,7 +137,32 @@ class LifecycleService
         }
 
         $this->project($model, $result->marking, $versionId);
-        $this->react($model, $blueprint, $transitionName, $from, $result->marking, $versionId, $context);
+        $fact = new WorkflowTransitionFact([
+            'subject_type' => $model->getMorphClass(),
+            'subject_id' => (string) $model->getKey(),
+            'transition' => $transitionName,
+            'from' => $from,
+            'to' => $result->marking,
+            'version_id' => $versionId,
+            'actor' => $context->actor,
+            'run_id' => $context->runId,
+            'causation_id' => $context->causationId,
+            'causal_path' => $context->causalPath,
+            'occurred_at' => now('UTC'),
+        ]);
+        $fact->setConnection($model->getConnectionName());
+        if (! $fact->save()) {
+            throw new LogicException('The workflow transition fact was not persisted.');
+        }
+        $result->transitionId = $fact->id;
+
+        $snapshot = clone $model;
+        $resultSnapshot = clone $result;
+        $contextSnapshot = clone $context;
+        $model->getConnection()->afterCommit(function () use ($snapshot, $blueprint, $subject, $transitionName, $from, $resultSnapshot, $versionId, $contextSnapshot) {
+            $this->runner->emitStatus($blueprint, $subject, $transitionName, $snapshot, $contextSnapshot);
+            $this->react($snapshot, $blueprint, $transitionName, $from, $resultSnapshot->marking, $versionId, $contextSnapshot, $resultSnapshot->transitionId);
+        });
 
         return $result;
     }
@@ -173,11 +218,15 @@ class LifecycleService
      * @param  list<string>  $from
      * @param  list<string>  $to
      */
-    protected function react(Model $model, WorkflowBlueprint $blueprint, string $transitionName, array $from, array $to, ?string $versionId, TransitionContext $context): void
+    protected function react(Model $model, WorkflowBlueprint $blueprint, string $transitionName, array $from, array $to, ?string $versionId, TransitionContext $context, ?string $transitionId = null): void
     {
-        $event = new WorkflowTransitioned($model, $transitionName, $from, $to, $versionId, $context->runId, $context->actor);
+        $event = new WorkflowTransitioned($model, $transitionName, $from, $to, $versionId, $context->runId, $context->actor, $transitionId);
 
-        $this->events->dispatch($event);
+        try {
+            $this->events->dispatch($event);
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         foreach ($this->effectsFor($blueprint, $transitionName) as $ref => $params) {
             try {
@@ -283,6 +332,38 @@ class LifecycleService
         ];
     }
 
+    /** Freeze a definition for an action while preserving an existing subject pin. */
+    public function pinDefinition(Model $model): ?string
+    {
+        if (! $model instanceof WorkflowManaged || ! $model->exists) {
+            return null;
+        }
+
+        return $model->getConnection()->transaction(function () use ($model) {
+            $current = $model->newQuery()->whereKey($model->getKey())->lockForUpdate()->first();
+            if ($current === null) {
+                return null;
+            }
+            $model->setRawAttributes($current->getAttributes(), true);
+            $resolved = $this->resolve($model);
+            if ($resolved === null) {
+                return null;
+            }
+            [$blueprint, $binding, $versionId] = $resolved;
+            if ($versionId === null) {
+                $versionId = $this->store->onConnection($model->getConnectionName())
+                    ->ensureSystemLineage($binding->lineageRef, $blueprint->name, $blueprint)
+                    ->activeVersion()->id;
+            }
+            $model->{$model->workflowVersionAttribute()} = $versionId;
+            if (! $model->save()) {
+                throw new LogicException('The workflow subject was not persisted.');
+            }
+
+            return $versionId;
+        });
+    }
+
     /**
      * Resolve the model to `[blueprint, binding, versionId|null]`, or `null` if unmanaged.
      *
@@ -290,6 +371,7 @@ class LifecycleService
      */
     protected function resolve(Model $model): ?array
     {
+        $store = $this->store->onConnection($model->getConnectionName());
         $binding = $this->bindings->forObject($model, $this->types);
 
         if ($binding === null) {
@@ -302,14 +384,16 @@ class LifecycleService
             : null;
 
         if ($pin !== null) {
-            $version = $this->store->version((string) $pin);
+            $version = $store->version((string) $pin);
             if ($version !== null) {
                 return [$version->toBlueprint(), $binding, $version->id];
             }
+
+            return null; // A broken pin must never silently adopt another definition.
         }
 
         // 2. The binding's lineage is in the store → its active version (pin the model to it).
-        $active = $this->store->activeVersion($binding->lineageRef);
+        $active = $store->activeVersion($binding->lineageRef);
         if ($active !== null) {
             return [$active->toBlueprint(), $binding, $active->id];
         }
@@ -367,7 +451,9 @@ class LifecycleService
             $model->{$model->workflowVersionAttribute()} = $versionId;
         }
 
-        $model->save();
+        if (! $model->save()) {
+            throw new LogicException('The workflow subject was not persisted.');
+        }
     }
 
     /**

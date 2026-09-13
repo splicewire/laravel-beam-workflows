@@ -185,3 +185,85 @@ it('runs an effect ONCE when its transition name is declared from several places
 
     expect($calls)->toBe(1);
 });
+
+it('announces a transition only after the outer transaction commits', function () {
+    app(DefinitionStore::class)->ensureSystemLineage('effect.lifecycle', 'Effect Lifecycle', effectBlueprint());
+    app(WorkflowBindingRegistry::class)->bind('effect-ticket', 'effect.lifecycle');
+    $ticket = EffectTicket::create(['status' => 'open']);
+    $seen = [];
+    Event::listen(WorkflowTransitioned::class, function ($event) use (&$seen) {
+        $seen[] = $event->transition;
+    });
+
+    $connection = $ticket->getConnection();
+    $connection->beginTransaction();
+    app(LifecycleService::class)->transition($ticket, 'close');
+    expect($seen)->toBe([]);
+    $connection->rollBack();
+    expect($seen)->toBe([])
+        ->and($ticket->fresh()->status)->toBe('open');
+
+    $connection->transaction(function () use ($ticket, &$seen) {
+        app(LifecycleService::class)->transition($ticket->fresh(), 'close');
+        expect($seen)->toBe([]);
+    });
+    expect($seen)->toBe(['close']);
+});
+
+it('keeps authoritative transition history atomic with the subject and reports its identity', function () {
+    app(DefinitionStore::class)->ensureSystemLineage('effect.lifecycle', 'Effect Lifecycle', effectBlueprint());
+    app(WorkflowBindingRegistry::class)->bind('effect-ticket', 'effect.lifecycle');
+    $ticket = EffectTicket::create(['status' => 'open']);
+    $history = app(Splicewire\Beam\Workflows\Control\WorkflowHistory::class);
+
+    $ticket->getConnection()->beginTransaction();
+    $rolledBack = app(LifecycleService::class)->transition($ticket, 'close');
+    expect($rolledBack->transitionId)->not->toBeNull();
+    $ticket->getConnection()->rollBack();
+    expect($history->forSubject($ticket))->toHaveCount(0);
+
+    $result = app(LifecycleService::class)->transition($ticket->fresh(), 'close');
+    $facts = $history->forSubject($ticket);
+    expect($facts)->toHaveCount(1)
+        ->and($facts->first()->id)->toBe($result->transitionId)
+        ->and($facts->first()->from)->toBe(['open'])
+        ->and($facts->first()->to)->toBe(['closed'])
+        ->and($facts->first()->occurred_at)->not->toBeNull();
+});
+
+it('freezes reaction provenance before returning a mutable result to an outer transaction', function () {
+    app(DefinitionStore::class)->ensureSystemLineage('effect.lifecycle', 'Effect Lifecycle', effectBlueprint());
+    app(WorkflowBindingRegistry::class)->bind('effect-ticket', 'effect.lifecycle');
+    $ticket = EffectTicket::create(['status' => 'open']);
+    $seen = null;
+    Event::listen(WorkflowTransitioned::class, function ($event) use (&$seen) {
+        $seen = $event;
+    });
+    $context = new TransitionContext(actor: 'user:real');
+    $id = null;
+    $ticket->getConnection()->transaction(function () use ($ticket, $context, &$id) {
+        $result = app(LifecycleService::class)->transition($ticket, 'close', context: $context);
+        $id = $result->transitionId;
+        $result->marking = ['invented'];
+        $result->transitionId = 'invented';
+        $context->actor = 'user:invented';
+    });
+    expect($seen->to)->toBe(['closed'])
+        ->and($seen->actor)->toBe('user:real')
+        ->and($seen->transitionId)->toBe($id);
+});
+
+it('rolls back without a success fact when a model listener vetoes persistence', function () {
+    app(DefinitionStore::class)->ensureSystemLineage('effect.lifecycle', 'Effect Lifecycle', effectBlueprint());
+    app(WorkflowBindingRegistry::class)->bind('effect-ticket', 'effect.lifecycle');
+    $ticket = EffectTicket::create(['status' => 'open']);
+    EffectTicket::updating(fn () => false);
+    try {
+        expect(fn () => app(LifecycleService::class)->transition($ticket, 'close'))
+            ->toThrow(LogicException::class, 'not persisted');
+        expect($ticket->fresh()->status)->toBe('open')
+            ->and(app(Splicewire\Beam\Workflows\Control\WorkflowHistory::class)->forSubject($ticket))->toHaveCount(0);
+    } finally {
+        EffectTicket::flushEventListeners();
+    }
+});

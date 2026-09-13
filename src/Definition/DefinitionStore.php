@@ -3,6 +3,7 @@
 namespace Splicewire\Beam\Workflows\Definition;
 
 use Illuminate\Database\ConnectionResolverInterface;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
 
 /**
@@ -22,16 +23,22 @@ class DefinitionStore
 {
     public function __construct(
         protected ConnectionResolverInterface $db,
+        protected ?string $connectionName = null,
     ) {}
+
+    public function onConnection(?string $name): self
+    {
+        return new self($this->db, $name);
+    }
 
     public function lineageByKey(string $key): ?WorkflowDefinitionLineage
     {
-        return WorkflowDefinitionLineage::query()->where('key', $key)->first();
+        return WorkflowDefinitionLineage::on($this->connectionName)->where('key', $key)->first();
     }
 
     public function version(string $versionId): ?WorkflowDefinitionVersion
     {
-        return WorkflowDefinitionVersion::query()->find($versionId);
+        return WorkflowDefinitionVersion::on($this->connectionName)->find($versionId);
     }
 
     /**
@@ -60,7 +67,7 @@ class DefinitionStore
         bool $isSystem = false,
     ): WorkflowDefinitionLineage {
         return $this->connection()->transaction(function () use ($key, $name, $blueprint, $isSystem) {
-            $lineage = WorkflowDefinitionLineage::query()->create([
+            $lineage = WorkflowDefinitionLineage::on($this->connectionName)->create([
                 'key' => $key,
                 'name' => $name,
                 'is_system' => $isSystem,
@@ -83,7 +90,17 @@ class DefinitionStore
      */
     public function ensureSystemLineage(string $key, string $name, WorkflowBlueprint $blueprint): WorkflowDefinitionLineage
     {
-        return $this->lineageByKey($key) ?? $this->createLineage($key, $name, $blueprint, isSystem: true);
+        if (($existing = $this->lineageByKey($key)) !== null) {
+            return $existing;
+        }
+
+        try {
+            return $this->createLineage($key, $name, $blueprint, isSystem: true);
+        } catch (UniqueConstraintViolationException $e) {
+            // createLineage's nested transaction rolls back before re-reading the winner.
+            // Different subjects can concurrently freeze the same code-only lineage.
+            return $this->lineageByKey($key) ?? throw $e;
+        }
     }
 
     /**
@@ -138,6 +155,6 @@ class DefinitionStore
 
     protected function connection()
     {
-        return $this->db->connection();
+        return $this->db->connection($this->connectionName);
     }
 }

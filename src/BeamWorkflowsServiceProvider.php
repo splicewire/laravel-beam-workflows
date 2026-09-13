@@ -80,6 +80,7 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
                 'tenant/create_workflow_definition_tables',
                 'tenant/create_workflow_bindings_table',
                 'tenant/create_workflow_awaitings_table',
+                'tenant/create_workflow_transition_facts_table',
             ]);
     }
 

@@ -58,7 +58,7 @@ class WorkflowActuator
      */
     public function transition(Model $model, string $name, ?TransitionContext $context = null): TransitionResult
     {
-        return $this->lifecycle->transition($model, $name, $this->context($model), $context);
+        return $this->lifecycle->transition($model, $name, context: $context);
     }
 
     public function manages(Model $model): bool

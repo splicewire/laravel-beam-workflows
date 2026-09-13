@@ -10,9 +10,9 @@ use Splicewire\Beam\Workflows\Display\State;
 use Splicewire\Beam\Workflows\Display\StatusEmitter;
 use Splicewire\Beam\Workflows\Display\StatusEvent;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use Symfony\Component\Workflow\Event\CompletedEvent;
 use Symfony\Component\Workflow\Event\GuardEvent;
 use Symfony\Component\Workflow\Exception\UndefinedTransitionException;
+use Symfony\Component\Workflow\Workflow;
 
 /**
  * The heart of the Control seam: apply ONE transition to a subject, honoring the blueprint's
@@ -52,12 +52,12 @@ class WorkflowRunner
         ?Model $statusSubject = null,
         ?TransitionContext $context = null,
         string $markingProperty = 'marking',
+        bool $emitStatus = true,
     ): TransitionResult {
         $definition = $this->builder->build($blueprint);
         $dispatcher = new EventDispatcher;
 
         $this->wireGuards($dispatcher, $blueprint);
-        $this->wireStatusEmission($dispatcher, $blueprint, $statusSubject, $context ?? new TransitionContext);
 
         $workflow = $this->factory->make($definition, $blueprint->name, $markingProperty, $dispatcher);
 
@@ -95,8 +95,12 @@ class WorkflowRunner
             );
         }
 
-        // The completed listener (wired above) emits the StatusEvent as a side effect of applying.
-        $workflow->apply($subject, $event);
+        // Announce computes enabled transitions after mutation. This runner has no announce
+        // subscribers; its display projection performs that computation inside its own boundary.
+        $workflow->apply($subject, $event, [Workflow::DISABLE_ANNOUNCE_EVENT => true]);
+        if ($emitStatus) {
+            $this->emitStatus($blueprint, $subject, $event, $statusSubject, $context, $markingProperty);
+        }
 
         return new TransitionResult(
             marking: $this->places($subject, $markingProperty),
@@ -134,19 +138,10 @@ class WorkflowRunner
 
     protected function wireGuards(EventDispatcher $dispatcher, WorkflowBlueprint $blueprint): void
     {
-        $guardMap = [];
-        foreach ($blueprint->transitions as $t) {
-            if ($t->guard !== null) {
-                $guardMap[$t->name] = $t->guard;
-            }
-        }
-
-        if ($guardMap === []) {
-            return;
-        }
-
-        $dispatcher->addListener("workflow.{$blueprint->name}.guard", function (GuardEvent $event) use ($guardMap) {
-            $ref = $guardMap[$event->getTransition()->getName()] ?? null;
+        $dispatcher->addListener("workflow.{$blueprint->name}.guard", function (GuardEvent $event) {
+            // Names can be shared by transitions from different places. The guard belongs to
+            // this exact Transition object, as recorded by DefinitionBuilder.
+            $ref = $event->getMetadata('guard', $event->getTransition());
             if ($ref === null) {
                 return;
             }
@@ -166,36 +161,34 @@ class WorkflowRunner
         });
     }
 
-    protected function wireStatusEmission(EventDispatcher $dispatcher, WorkflowBlueprint $blueprint, ?Model $statusSubject, TransitionContext $context): void
-    {
-        $dispatcher->addListener("workflow.{$blueprint->name}.completed", function (CompletedEvent $event) use ($statusSubject, $context) {
-            $transition = $event->getTransition()?->getName() ?? '';
-            $places = array_keys($event->getMarking()->getPlaces());
-
-            // Reaching a sink place (no further enabled transitions) is a Complete; otherwise the
-            // process is still Running. This automatic mapping means a lifecycle need not annotate
-            // every place with a state.
-            $terminal = $event->getWorkflow()->getEnabledTransitions($event->getSubject()) === [];
+    /**
+     * Project an applied marking onto Display. Persistence-owning callers may defer this until
+     * their transaction commits. Computing enabled actions is also display work here: a broken
+     * next-step guard must not turn a completed transition into a failed execution.
+     */
+    public function emitStatus(
+        WorkflowBlueprint $blueprint,
+        object $markingSubject,
+        string $transition,
+        ?Model $statusSubject = null,
+        ?TransitionContext $context = null,
+        string $markingProperty = 'marking',
+    ): void {
+        try {
+            $places = $this->places($markingSubject, $markingProperty);
+            $terminal = $this->enabled($blueprint, $markingSubject, $markingProperty) === [];
             $state = $terminal ? State::Complete : State::Running;
+            $context ??= new TransitionContext;
 
-            // ISOLATED, and that is the whole Display-vs-Control invariant in one place. This
-            // listener runs INSIDE `Workflow::apply()`, on the far side of the marking mutation, so
-            // an emit that raised — a downed timeline, a full disk, a swapped-out activity model —
-            // propagated straight out of `apply()` and turned a legal, already-applied transition
-            // into an exception at the caller. Display is derived, eventually-consistent and
-            // lossy-OK; a status projection must never be the thing that breaks execution
-            // correctness. Report it and let the run continue.
-            try {
-                $this->emitter->emit(
-                    $statusSubject,
-                    StatusEvent::whole($state, "transition:{$transition} → ".implode(',', $places)),
-                    $context->runId,
-                    $context->actor,
-                );
-            } catch (\Throwable $e) {
-                report($e);
-            }
-        });
+            $this->emitter->emit(
+                $statusSubject,
+                StatusEvent::whole($state, "transition:{$transition} → ".implode(',', $places)),
+                $context->runId,
+                $context->actor,
+            );
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /**

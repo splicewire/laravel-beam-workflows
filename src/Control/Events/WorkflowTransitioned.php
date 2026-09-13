@@ -37,5 +37,6 @@ class WorkflowTransitioned
         public ?string $versionId = null,
         public ?string $runId = null,
         public ?string $actor = null,
+        public ?string $transitionId = null,
     ) {}
 }

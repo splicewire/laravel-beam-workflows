@@ -56,6 +56,7 @@ abstract class TestCase extends Orchestra
 
         $this->createActivityLogTable();
         $this->createDefinitionStoreTables();
+        (require __DIR__.'/../database/migrations/tenant/create_workflow_transition_facts_table.php.stub')->up();
 
         Schema::create('fake_processes', function (Blueprint $table) {
             $table->id();

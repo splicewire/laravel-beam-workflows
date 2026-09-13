@@ -25,5 +25,7 @@ class TransitionContext
     public function __construct(
         public ?string $actor = null,
         public ?string $runId = null,
+        public ?string $causationId = null,
+        public array $causalPath = [],
     ) {}
 }

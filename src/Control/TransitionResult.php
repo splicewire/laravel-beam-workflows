@@ -20,6 +20,7 @@ class TransitionResult
         public string $transition,
         public bool $applied,
         public array $blockers = [],
+        public ?string $transitionId = null,
     ) {}
 
     /**
@@ -32,6 +33,7 @@ class TransitionResult
             'transition' => $this->transition,
             'applied' => $this->applied,
             'blockers' => $this->blockers,
+            'transition_id' => $this->transitionId,
         ];
     }
 }
