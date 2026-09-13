@@ -154,6 +154,7 @@ class LifecycleService
         if (! $fact->save()) {
             throw new LogicException('The workflow transition fact was not persisted.');
         }
+        app(\Splicewire\Beam\Workflows\Reactions\WorkflowReactionRecorder::class)->capture($model, $fact);
         $result->transitionId = $fact->id;
 
         $snapshot = clone $model;

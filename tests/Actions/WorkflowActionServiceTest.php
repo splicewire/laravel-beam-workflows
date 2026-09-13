@@ -99,8 +99,18 @@ it('refuses revoked execution authority and a migrated definition without applyi
     expect($service->execute('denied-attempt', $data, $context)->applied)->toBeFalse();
     $authority->allowed = true;
     $article->refresh()->update(['workflow_version' => '00000000-0000-0000-0000-000000000001']);
-    expect($service->execute('migrated-attempt', $data, $context)->blockers[0])->toContain('definition changed')
+    expect($service->execute('migrated-attempt', $data, $context)->blockers[0])->toContain('create a new schedule')
         ->and($article->fresh()->status)->toBe('draft');
+    $nextVersion = app(DefinitionStore::class)->fork('action-article.lifecycle', WorkflowBlueprint::fromArray([
+        'name' => 'action-article.lifecycle', 'places' => ['draft', 'published'], 'initial' => ['draft'],
+        'transitions' => [['name' => 'publish', 'from' => 'draft', 'to' => 'published']],
+    ]));
+    $article->refresh()->update(['workflow_version' => $nextVersion->id]);
+    expect($service->execute('retry-keeps-old-pin', $data, $context)->applied)->toBeFalse();
+    $newSchedule = $service->prepare(new Splicewire\Beam\Workflows\Actions\Data\WorkflowActionData('article', (string) $article->id, 'publish'), $context);
+    expect($newSchedule->definitionVersion)->toBe($nextVersion->id)
+        ->and($service->execute('new-schedule-attempt', $newSchedule, $context)->applied)->toBeTrue()
+        ->and($service->execute('migrated-attempt', $data, $context)->applied)->toBeFalse();
 });
 
 it('retains refusal history and requires a new identity for an explicit retry', function () {

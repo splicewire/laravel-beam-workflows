@@ -6,8 +6,8 @@ calendar handlers and persisted Circuit actions must use this seam. Unsaved call
 transition inputs; save them deliberately before requesting the transition. A stale model cannot
 restore an old marking or supply stale review facts.
 
-The status mutation, definition pin and `workflow_transition_facts` insert share the subject's
-transaction. The returned `TransitionResult::transitionId` identifies that control fact. Rollback
+The status mutation, definition pin, `workflow_transition_facts` insert and configured required
+reaction capture share the subject's transaction. The returned `TransitionResult::transitionId` identifies that control fact. Rollback
 removes both status change and fact; retry after rollback can make a new attempt. History is read
 through `WorkflowHistory::forSubject()`, independently of activity-log retention or display failures.
 Publish the new `create_workflow_transition_facts_table` tenant migration with
@@ -15,8 +15,8 @@ Publish the new `create_workflow_transition_facts_table` tenant migration with
 
 `WorkflowTransitioned`, status Display emissions and named notification effects run only after the
 outer transaction commits. They remain best effort: failure is reported and never converts committed
-success into a failed transition. Required downstream work must consume the durable control facts,
-not rely on receiving those process-local callbacks. A process that dies after commit can lose a
+success into a failed transition. Required downstream work uses [durable reaction deliveries](required-reactions.md),
+independently of receiving those process-local callbacks. A process that dies after commit can lose a
 notification; it cannot erase the fact. Facts carry actor, run, causation and causal-path fields;
 these are provenance, not authorization credentials.
 

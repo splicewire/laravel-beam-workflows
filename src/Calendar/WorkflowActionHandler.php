@@ -39,7 +39,8 @@ class WorkflowActionHandler implements ActionHandler
         $context = new WorkflowActionContext(
             $action->principal, $action->creator, $action->tenant_token,
             runId: $action->correlation_id,
-            causationId: $action->origin,
+            causationId: $action->payload['_workflow_causation']['transition_id'] ?? $action->origin,
+            causalPath: $action->payload['_workflow_causation']['path'] ?? [],
         );
         $result = $this->workflows->execute('calendar:'.$attempt->id,
             WorkflowActionData::from($action->payload), $context, $connection);

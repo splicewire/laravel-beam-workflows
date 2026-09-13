@@ -82,11 +82,14 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
                 'tenant/create_workflow_awaitings_table',
                 'tenant/create_workflow_transition_facts_table',
                 'tenant/create_workflow_action_receipts_table',
+                'tenant/create_workflow_reactions_tables',
             ]);
     }
 
     public function packageRegistered(): void
     {
+        $this->app->bind(Reactions\Contracts\WorkflowSubjectSnapshot::class,
+            Reactions\AttributeWorkflowSubjectSnapshot::class);
         $this->app->singleton(WorkflowFactory::class, fn () => new WorkflowFactory);
 
         $this->app->singleton(DefinitionBuilder::class, fn () => new DefinitionBuilder);
@@ -215,6 +218,9 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
 
         // Optional free-package integration. Calendar storage and defaults remain independent.
         if (class_exists(\Splicewire\Beam\Calendars\Registries\ActionHandlerRegistry::class)) {
+            config(['beam.calendars.reserved_action_origins' => array_values(array_unique([
+                ...config('beam.calendars.reserved_action_origins', []), 'transition:',
+            ]))]);
             $this->callAfterResolving(\Splicewire\Beam\Calendars\Registries\ActionHandlerRegistry::class,
                 function ($registry): void {
                     if (! $registry->has(Calendar\WorkflowActionHandler::KIND)) {
@@ -327,6 +333,10 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
     {
         $registry = $this->app->make(WorkflowInvocableRegistry::class)
             ->register($this->app->make(WorkflowApplyInvocable::class));
+        $registry->register(new \Rushing\Popcorn\Invocables\LocalInvocable(
+            Circuit\WorkflowSubjectInvocable::NAME,
+            fn (array $input): array => $this->app->make(Circuit\WorkflowSubjectInvocable::class)->invoke($input),
+        ), ability: 'workflow.transition');
 
     }
 }

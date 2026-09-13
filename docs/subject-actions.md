@@ -13,8 +13,9 @@ authored while the subject is in an earlier state. Client-supplied version pins 
 Execute the prepared request with a durable identity and `WorkflowActionContext`. A receipt, the
 locked subject mutation and its required transition fact share the same database transaction and
 connection. A repeated identity with the same request returns its original result. Reusing an
-identity with different data is refused. A changed definition pin requires explicit rescheduling;
-execution never silently migrates an authored action. Every new intentional retry or Circuit visit
+identity with different data is refused. A changed definition pin requires a new schedule. Blocked
+history remains immutable and retry preserves the old pin; execution never silently migrates an
+authored action. Every new intentional retry or Circuit visit
 needs a new identity. Completed receipt replay does not repeat mutation or effects.
 
 The authority is checked again under the subject lock. Missing subjects, revoked authority,

@@ -94,7 +94,7 @@ class WorkflowActionService
                 $subject = $subject->newQuery()->whereKey($subject->getKey())->lockForUpdate()->firstOrFail();
                 $this->authority->authorize($subject, $data->transition, $context);
                 if (! $subject instanceof WorkflowManaged || $subject->{$subject->workflowVersionAttribute()} !== $data->definitionVersion) {
-                    $result = new TransitionResult([], $data->transition, false, ['The subject workflow definition changed; explicitly reschedule the action.']);
+                    $result = new TransitionResult([], $data->transition, false, ['The subject workflow definition changed; create a new schedule using the current definition.']);
                 } else {
                     $result = $this->actuator->transition($subject, $data->transition,
                         new TransitionContext($context->principal, $context->runId, $context->causationId, $context->causalPath));

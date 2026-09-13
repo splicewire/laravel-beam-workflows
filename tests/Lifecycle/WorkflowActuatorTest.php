@@ -151,6 +151,7 @@ it('keeps an explicitly connected subjects definition status and facts on that c
     app('db')->usingConnection('workflow_other', function () use ($blueprint) {
         $this->createDefinitionStoreTables();
         (require __DIR__.'/../../database/migrations/tenant/create_workflow_transition_facts_table.php.stub')->up();
+        (require __DIR__.'/../../database/migrations/tenant/create_workflow_reactions_tables.php.stub')->up();
         Schema::create('actuator_articles', function (TableBlueprint $table) {
             $table->increments('id');
             $table->string('status')->default('draft');
@@ -178,4 +179,3 @@ it('keeps an explicitly connected subjects definition status and facts on that c
         ->and($history->forSubject($defaultArticle))->toHaveCount(0)
         ->and(app(DefinitionStore::class)->lineageByKey('article.other'))->toBeNull();
 });
-
