@@ -38,9 +38,11 @@ handler to authorize an associated calendar; the neutral `calendar_id` is an opa
 not a Composition foreign key. A standalone calendar needs no Tower or composition dependency.
 
 `composer test` includes the real optional providers and published migration stubs. It verifies
-prepare/execute, duplicate delivery, authority revocation, definition migration, rollback,
+prepare/execute, standalone duplicate intent, authority revocation, definition migration, rollback,
 calendar due-time dispatch and persisted history. SQLite tests do not prove PostgreSQL row-lock
-contention or process-crash recovery; those consuming-host gates remain separate evidence.
+contention or process-crash recovery; those consuming-host gates remain separate evidence. The
+standalone workflow test still proves that an aborted local transaction leaves the action pending
+and can be safely rerun.
 
 See [transactional lifecycles](transactional-lifecycles.md) for the required fact versus best-effort
 after-commit reactions, and [Circuit subject actions](circuit-subject-actions.md) for trusted node
