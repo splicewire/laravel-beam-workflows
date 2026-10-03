@@ -60,9 +60,7 @@ class WorkflowAdmin
             if (str_contains($type['key'], '\\')) {
                 continue;
             }
-            if (str_contains($type['label'], '\\')) {
-                $type['label'] = (string) Str::of($type['label'])->afterLast('\\')->headline();
-            }
+            $type['label'] = $this->readable($type['label']);
             $options[$type['key']] ??= $type;
         }
         foreach ($this->bindings->all() as $binding) {
@@ -71,10 +69,17 @@ class WorkflowAdmin
 
         return [
             'blueprintSchema' => WorkflowBlueprint::jsonSchema(),
-            'guards' => $this->guards->guardCatalog(),
-            'effects' => $this->effects->effectCatalog(),
+            // Guard and effect labels are free-form host text as well (build.qa, review-r1 on 3847c8e).
+            'guards' => array_map(fn (array $g) => [...$g, 'label' => $this->readable($g['label'])], $this->guards->guardCatalog()),
+            'effects' => array_map(fn (array $e) => [...$e, 'label' => $this->readable($e['label'])], $this->effects->effectCatalog()),
             'types' => array_values($options),
         ];
+    }
+
+    /** A display label with no PHP class-string in it: `App\\Guards\\RequireReview` reads as `Require Review`. */
+    protected function readable(string $label): string
+    {
+        return str_contains($label, '\\') ? (string) Str::of($label)->afterLast('\\')->headline() : $label;
     }
 
     /**
