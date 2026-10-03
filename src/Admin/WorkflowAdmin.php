@@ -2,6 +2,7 @@
 
 namespace Splicewire\Beam\Workflows\Admin;
 
+use Illuminate\Support\Str;
 use Splicewire\Beam\Workflows\Admin\Contracts\GovernableTypeSource;
 use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
 use Splicewire\Beam\Workflows\Blueprint\BlueprintValidator;
@@ -52,6 +53,16 @@ class WorkflowAdmin
             $options[$type['key']] ??= $type;
         }
         foreach ($source?->governableTypes() ?? [] as $type) {
+            // A host source is free-form, and no PHP class-string may reach the UI (laravel-frame ADR-0004; launch
+            // ticket 05 item 1). A class-string KEY could never be bound (a binding key is a registry key, which holds
+            // no `\`), so offering it would only fail on save: leave it out. A class-string LABEL reads as the class's
+            // own name, the way WorkflowTransitionedNotification already words one.
+            if (str_contains($type['key'], '\\')) {
+                continue;
+            }
+            if (str_contains($type['label'], '\\')) {
+                $type['label'] = (string) Str::of($type['label'])->afterLast('\\')->headline();
+            }
             $options[$type['key']] ??= $type;
         }
         foreach ($this->bindings->all() as $binding) {
