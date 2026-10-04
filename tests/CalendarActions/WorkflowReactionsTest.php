@@ -33,6 +33,9 @@ class ReactionCalendarArticle extends Model implements WorkflowManaged
     }
 }
 
+// A governed type carries a morph alias (launch ticket 05 ruling 1), so the fixture does too.
+\Illuminate\Database\Eloquent\Relations\Relation::morphMap(['reaction_calendar_article' => ReactionCalendarArticle::class]);
+
 beforeEach(function () {
     Schema::create('reaction_calendar_articles', function (Blueprint $table) {
         $table->id();

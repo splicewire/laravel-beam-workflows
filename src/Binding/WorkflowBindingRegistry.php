@@ -2,6 +2,7 @@
 
 namespace Splicewire\Beam\Workflows\Binding;
 
+use Illuminate\Database\Eloquent\Model;
 use Psr\Log\LoggerInterface;
 use Rushing\Popcorn\Registries\Authorizer;
 use Rushing\Popcorn\Registries\BasicRegistry;
@@ -185,6 +186,12 @@ class WorkflowBindingRegistry implements Forgettable, Gated, Registry
     {
         foreach ($resolver->candidatesFor($object) as $typeKey) {
             if ($this->has($typeKey)) {
+                // The first moment a model class resolves as governed (there is no class-level bind step): it must carry
+                // a morph alias, or its awaiting rows show its FQCN in the Workflow Queue (launch ticket 05 ruling 1).
+                if ($object instanceof Model && $object->getMorphClass() === $object::class) {
+                    throw UnaliasedGovernedType::for($object::class, $typeKey);
+                }
+
                 return $this->for($typeKey);
             }
         }

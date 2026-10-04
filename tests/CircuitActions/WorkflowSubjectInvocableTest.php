@@ -46,6 +46,9 @@ class CircuitActionArticle extends Model implements ProvidesGuardContext, Workfl
     }
 }
 
+// A governed type carries a morph alias (launch ticket 05 ruling 1), so the fixture does too.
+\Illuminate\Database\Eloquent\Relations\Relation::morphMap(['circuit_action_article' => CircuitActionArticle::class]);
+
 beforeEach(function () {
     Schema::create('circuit_action_articles', function (TableBlueprint $table) {
         $table->increments('id');

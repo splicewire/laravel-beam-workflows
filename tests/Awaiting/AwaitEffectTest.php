@@ -40,6 +40,9 @@ class AwaitTicket extends Model implements WorkflowManaged
     }
 }
 
+// A governed type carries a morph alias (launch ticket 05 ruling 1), so the fixture does too.
+\Illuminate\Database\Eloquent\Relations\Relation::morphMap(['await_ticket' => AwaitTicket::class]);
+
 /** An in-memory AwaitingStore that records every call — the host binds a real one (ticket 12). */
 class SpyAwaitingStore implements AwaitingStore
 {

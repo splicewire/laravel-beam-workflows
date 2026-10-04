@@ -24,6 +24,9 @@ class ReactionArticle extends Illuminate\Database\Eloquent\Model implements Spli
     }
 }
 
+// A governed type carries a morph alias (launch ticket 05 ruling 1), so the fixture does too.
+\Illuminate\Database\Eloquent\Relations\Relation::morphMap(['reaction_article' => ReactionArticle::class]);
+
 beforeEach(function () {
     Schema::create('reaction_articles', function (Blueprint $table) {
         $table->id();

@@ -40,6 +40,9 @@ class ActuatorArticle extends Model implements ProvidesGuardContext, WorkflowMan
     }
 }
 
+// A governed type carries a morph alias (launch ticket 05 ruling 1), so the fixture does too.
+\Illuminate\Database\Eloquent\Relations\Relation::morphMap(['actuator_article' => ActuatorArticle::class]);
+
 beforeEach(function () {
     if (! Schema::hasTable('actuator_articles')) {
         Schema::create('actuator_articles', function (TableBlueprint $table) {

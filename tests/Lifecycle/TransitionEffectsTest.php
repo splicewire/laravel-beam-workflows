@@ -38,6 +38,9 @@ class EffectTicket extends Model implements WorkflowManaged
     }
 }
 
+// A governed type carries a morph alias (launch ticket 05 ruling 1), so the fixture does too.
+\Illuminate\Database\Eloquent\Relations\Relation::morphMap(['effect_ticket' => EffectTicket::class]);
+
 function effectBlueprint(array $effects = [], array $effectParams = []): WorkflowBlueprint
 {
     return WorkflowBlueprint::fromArray([

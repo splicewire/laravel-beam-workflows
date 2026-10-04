@@ -33,6 +33,9 @@ class ActionArticle extends Model implements ProvidesGuardContext, WorkflowManag
     }
 }
 
+// A governed type carries a morph alias (launch ticket 05 ruling 1), so the fixture does too.
+\Illuminate\Database\Eloquent\Relations\Relation::morphMap(['action_article' => ActionArticle::class]);
+
 beforeEach(function () {
     Schema::create('action_articles', function (TableBlueprint $table) {
         $table->increments('id');
