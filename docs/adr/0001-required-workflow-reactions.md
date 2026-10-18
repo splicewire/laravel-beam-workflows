@@ -30,3 +30,16 @@ one local intent. Terminal history remains and failed work is explicitly recover
 side effects need their own idempotency/reconciliation contract. No general event bus is introduced.
 
 Operational contracts and examples: [required reactions](../required-reactions.md).
+
+## Amendment — transactional domain participants (EP-15, 2026-10-18)
+
+A managed model may opt into `ParticipatesInWorkflowTransaction`. After the transition is admitted,
+before marking and transition-fact persistence, LifecycleService invokes it under the existing subject
+lock and transaction. It may perform domain writes on that same connection; throwing rolls the whole
+transition back. Immediate and durable scheduled actions use this same path. Models without the
+contract are unchanged. Only UX Releases currently need the capability, to move all publication pins
+atomically with the Release workflow. No domain names enter the workflows package.
+
+The participant is not a notification effect. External I/O belongs after commit; existing effects,
+status signals and notification failure isolation remain unchanged. Transition context is passed as a
+copy so a participant cannot rewrite the actor/run provenance subsequently recorded by the engine.

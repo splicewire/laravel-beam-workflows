@@ -136,6 +136,12 @@ class LifecycleService
             );
         }
 
+        // Opt-in domain writes share admission, lock, connection and rollback with the marking.
+        // Notifications remain in the existing afterCommit path below.
+        if ($model instanceof \Splicewire\Beam\Workflows\Control\Contracts\ParticipatesInWorkflowTransaction) {
+            $model->participateInWorkflowTransaction($transitionName, clone $context);
+        }
+
         $this->project($model, $result->marking, $versionId);
         $fact = new WorkflowTransitionFact([
             'subject_type' => $model->getMorphClass(),
