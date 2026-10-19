@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use LogicException;
 use Splicewire\Beam\Workflows\Binding\Binding;
 use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
+use Splicewire\Beam\Workflows\Blueprint\TransitionBlueprint;
 use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
 use Splicewire\Beam\Workflows\Control\Contracts\ProvidesGuardContext;
 use Splicewire\Beam\Workflows\Control\Events\WorkflowTransitioned;
@@ -312,8 +313,15 @@ class LifecycleService
      * shape ticket 04 anticipated — everything the stepper renders, computed server-side so the UI
      * never hardcodes a graph or a button list.
      *
+     * Each transition also carries its `guard` (the registry key of the rule that gates it, or null) and,
+     * when it is a move out of the current marking that is NOT available, the `reason` it is refused: the
+     * guard's own sentence, read through {@see WorkflowRunner::guardVerdict()}, the same one a refused
+     * attempt returns in `blockers`. A stepper never hides a move without saying why (product journey J2:
+     * Studio's "Submit for review" vanished with no reason). `reason` is null for an available move and
+     * for a transition that does not leave the current marking.
+     *
      * @param  array<string, mixed>  $params
-     * @return array{type: string, places: list<string>, transitions: list<array{name: string, from: list<string>, to: list<string>}>, current: string, available: list<string>}|null
+     * @return array{type: string, places: list<string>, transitions: list<array{name: string, from: list<string>, to: list<string>, guard: string|null, reason: string|null}>, current: string, available: list<string>}|null
      */
     public function projection(Model $model, array $params = []): ?array
     {
@@ -325,18 +333,54 @@ class LifecycleService
 
         [$blueprint, $binding] = $resolved;
 
+        // One subject for the whole projection: `available` and every refusal read the same marking and
+        // the same fused guard context, so the two can never disagree about a move.
+        $marking = $this->currentPlaces($model, $blueprint);
+        $subject = MarkingSubject::fromPlaces($marking, $this->guardContext($binding, $params));
+        $available = $this->runner->enabled($blueprint, $subject);
+
         return [
             // The type key that actually governs this object (the matched binding), which for a
             // schema-driven record may be its schema key rather than its class key.
             'type' => $binding->typeKey,
             'places' => $blueprint->places,
             'transitions' => array_map(
-                fn ($t) => ['name' => $t->name, 'from' => $t->from, 'to' => $t->to],
+                fn (TransitionBlueprint $t) => [
+                    'name' => $t->name,
+                    'from' => $t->from,
+                    'to' => $t->to,
+                    'guard' => $t->guard,
+                    'reason' => $this->refusal($t, $marking, $available, $subject),
+                ],
                 $blueprint->transitions,
             ),
             'current' => $this->currentPlace($model, $blueprint),
-            'available' => $this->available($model, $params),
+            'available' => $available,
         ];
+    }
+
+    /**
+     * Why a move is refused right now, or null when it is not a refused move: null for a transition that
+     * does not leave the current marking (it is no move from here), and null when its name is available
+     * (transitions may share a name across places; the move a caller makes is the name).
+     *
+     * @param  list<string>  $marking
+     * @param  list<string>  $available
+     */
+    protected function refusal(TransitionBlueprint $transition, array $marking, array $available, MarkingSubject $subject): ?string
+    {
+        if ($transition->from === [] || array_diff($transition->from, $marking) !== []) {
+            return null;
+        }
+
+        if (in_array($transition->name, $available, true)) {
+            return null;
+        }
+
+        // A move out of here that is not enabled has a blocking guard; the fallback covers a refusal the
+        // engine could not attribute (no guard answered), which it must still not report silently.
+        return $this->runner->guardVerdict($transition->guard, $subject)
+            ?? "[{$transition->name}] is not available from the current state.";
     }
 
     /** Freeze a definition for an action while preserving an existing subject pin. */

@@ -141,24 +141,41 @@ class WorkflowRunner
         $dispatcher->addListener("workflow.{$blueprint->name}.guard", function (GuardEvent $event) {
             // Names can be shared by transitions from different places. The guard belongs to
             // this exact Transition object, as recorded by DefinitionBuilder.
-            $ref = $event->getMetadata('guard', $event->getTransition());
-            if ($ref === null) {
-                return;
-            }
+            $blocked = $this->guardVerdict($event->getMetadata('guard', $event->getTransition()), $event->getSubject());
 
-            // A declared-but-unregistered guard is a misconfiguration — fail CLOSED (block), never
-            // silently let the guarded move through.
-            if (! $this->guards->has($ref)) {
-                $event->setBlocked(true, "Guard [{$ref}] is not registered.");
-
-                return;
-            }
-
-            $verdict = ($this->guards->get($ref))($event->getSubject());
-            if ($verdict !== true) {
-                $event->setBlocked(true, is_string($verdict) ? $verdict : "Blocked by guard [{$ref}].");
+            if ($blocked !== null) {
+                $event->setBlocked(true, $blocked);
             }
         });
+    }
+
+    /**
+     * One guard's verdict on a subject: null when it admits the move (or there is no guard), else the
+     * sentence that blocks it — the guard's own string, or a generic one when it answered a bare false.
+     *
+     * The single reader of a guard verdict: the guard listener above blocks with it, and
+     * {@see LifecycleService::projection()} reports it as a refused move's `reason`, so the stepper reads
+     * exactly the sentence a refused attempt would have returned.
+     */
+    public function guardVerdict(?string $ref, object $subject): ?string
+    {
+        if ($ref === null) {
+            return null;
+        }
+
+        // A declared-but-unregistered guard is a misconfiguration — fail CLOSED (block), never
+        // silently let the guarded move through.
+        if (! $this->guards->has($ref)) {
+            return "Guard [{$ref}] is not registered.";
+        }
+
+        $verdict = ($this->guards->get($ref))($subject);
+
+        if ($verdict === true) {
+            return null;
+        }
+
+        return is_string($verdict) ? $verdict : "Blocked by guard [{$ref}].";
     }
 
     /**

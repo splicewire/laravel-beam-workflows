@@ -9,6 +9,7 @@ use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
 use Splicewire\Beam\Workflows\Control\GuardRegistry;
 use Splicewire\Beam\Workflows\Control\LifecycleService;
 use Splicewire\Beam\Workflows\Control\WorkflowRunner;
+use Splicewire\Beam\Workflows\Data\WorkflowProjectionData;
 use Splicewire\Beam\Workflows\Definition\DefinitionStore;
 use Splicewire\Beam\Workflows\Display\StatusEmitter;
 use Splicewire\Beam\Workflows\Type\Concerns\WorkflowManaged as WorkflowManagedTrait;
@@ -140,11 +141,59 @@ it('exposes a model-blind projection (places, transitions, current, available) f
         ->and($projection['places'])->toBe(['open', 'triaged', 'closed'])
         ->and($projection['current'])->toBe('open')
         ->and($projection['available'])->toBe(['triage'])
-        ->and($projection['transitions'][0])->toBe(['name' => 'triage', 'from' => ['open'], 'to' => ['triaged']]);
+        // Every transition names its guard; `reason` is set only on a refused move out of here.
+        ->and($projection['transitions'][0])->toBe(['name' => 'triage', 'from' => ['open'], 'to' => ['triaged'], 'guard' => null, 'reason' => null])
+        // `close` is guarded but does not leave `open`: it is no move from here, so it is not "refused".
+        ->and($projection['transitions'][1])->toBe(['name' => 'close', 'from' => ['triaged'], 'to' => ['closed'], 'guard' => 'assignee_present', 'reason' => null]);
 
     // Unmanaged → null projection.
     app(WorkflowBindingRegistry::class)->unbind('support-ticket');
     expect(app(LifecycleService::class)->projection($ticket->fresh()))->toBeNull();
+});
+
+it('says why a move out of the current place is refused, in the words a refused attempt returns', function () {
+    // Product journey J2: a stepper hid a guarded move with no reason. The binding carries no assignee,
+    // so `close` is guarded shut from `triaged`.
+    app(WorkflowBindingRegistry::class)->bind('support-ticket', 'ticket.lifecycle', []);
+    $ticket = SupportTicket::create(['status' => 'triaged']);
+
+    $projection = app(LifecycleService::class)->projection($ticket);
+    $close = collect($projection['transitions'])->firstWhere('name', 'close');
+
+    expect($projection['available'])->toBe([])
+        ->and($close['guard'])->toBe('assignee_present')
+        ->and($close['reason'])->toBe('A ticket needs an assignee before it can close.');
+
+    // The same sentence the refused attempt answers with: one verdict reader for both.
+    $attempt = app(LifecycleService::class)->transition($ticket, 'close');
+    expect($attempt->applied)->toBeFalse()
+        ->and($attempt->blockers)->toBe([$close['reason']]);
+
+    // The reason crosses the wire on the declared projection shape.
+    $wire = WorkflowProjectionData::from($projection)->toArray();
+    expect(collect($wire['transitions'])->firstWhere('name', 'close')['reason'])
+        ->toBe('A ticket needs an assignee before it can close.');
+
+    // Once the guard admits it, the move is available and nothing is refused.
+    app(WorkflowBindingRegistry::class)->bind('support-ticket', 'ticket.lifecycle', ['assignee' => 'ada']);
+    $admitted = app(LifecycleService::class)->projection($ticket->fresh());
+    expect($admitted['available'])->toBe(['close'])
+        ->and(collect($admitted['transitions'])->pluck('reason')->filter()->all())->toBe([]);
+});
+
+it('reports an unregistered guard as the refusal, failing closed in the projection as in a transition', function () {
+    app(DefinitionStore::class)->ensureSystemLineage('ticket.lifecycle.unguarded', 'Ticket (missing guard)', WorkflowBlueprint::fromArray([
+        'name' => 'ticket.lifecycle.unguarded',
+        'places' => ['open', 'closed'],
+        'initial' => ['open'],
+        'transitions' => [['name' => 'close', 'from' => 'open', 'to' => 'closed', 'guard' => 'nobody_registered_me']],
+    ]));
+    app(WorkflowBindingRegistry::class)->bind('support-ticket', 'ticket.lifecycle.unguarded');
+    $ticket = SupportTicket::create(['status' => 'open']);
+
+    $close = collect(app(LifecycleService::class)->projection($ticket)['transitions'])->firstWhere('name', 'close');
+
+    expect($close['reason'])->toBe('Guard [nobody_registered_me] is not registered.');
 });
 
 it('applies the transition even when the Display emission blows up', function () {
