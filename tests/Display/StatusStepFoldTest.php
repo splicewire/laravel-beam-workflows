@@ -45,3 +45,37 @@ it('folds only the newest run; an earlier failed run is History', function () {
 it('folds an empty timeline to no steps', function () {
     expect(StatusStepData::fold([]))->toBe([]);
 });
+
+/*
+ * Owner re-walk RW-32 (2026-10-19): the operator's tenant page read "Creating subscription — Done" beside "No
+ * subscription yet". A step that records it had nothing to do (a `skipped` event on its ref) folds to `skipped`, with
+ * the event's message as its reason, and stays skipped when the run moves on, completes or fails later.
+ */
+it('folds a step that recorded nothing to do as skipped, with its reason, through a later step and the run completing', function () {
+    $steps = StatusStepData::fold([
+        stepFoldEvent('running', 'subscription', message: 'Creating subscription'),
+        stepFoldEvent('skipped', 'subscription', message: 'no plan selected'),
+        stepFoldEvent('running', 'packs', message: 'Applying scaffold packs'),
+        stepFoldEvent('complete'),
+    ]);
+
+    expect(array_map(fn (StatusStepData $s) => [$s->ref, $s->label, $s->state, $s->reason], $steps))->toBe([
+        ['subscription', 'Creating subscription', 'skipped', 'no plan selected'],
+        ['packs', 'Applying scaffold packs', 'done', null],
+    ]);
+});
+
+it('keeps a skipped step skipped when a later step fails, and folds a skip with no start under its ref', function () {
+    expect(stepFoldStates([
+        stepFoldEvent('skipped', 'subscription', message: 'billing rolls up to the reseller'),
+        stepFoldEvent('running', 'packs'),
+        stepFoldEvent('failed', message: 'boom'),
+    ]))->toBe([['subscription', 'skipped'], ['packs', 'failed']]);
+});
+
+it('reads skips from the newest run only', function () {
+    expect(stepFoldStates([
+        stepFoldEvent('running', 'subscription', 'r1'), stepFoldEvent('skipped', 'subscription', 'r1'), stepFoldEvent('failed', run: 'r1'),
+        stepFoldEvent('running', 'subscription', 'r2'), stepFoldEvent('complete', run: 'r2'),
+    ]))->toBe([['subscription', 'done']]);
+});
