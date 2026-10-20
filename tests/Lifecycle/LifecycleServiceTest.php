@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Schema;
 use Spatie\Activitylog\Contracts\Activity;
 use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
 use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
+use Splicewire\Beam\Workflows\Bridge\DefinitionBuilder;
+use Splicewire\Beam\Workflows\Bridge\WorkflowFactory;
 use Splicewire\Beam\Workflows\Control\GuardRegistry;
 use Splicewire\Beam\Workflows\Control\LifecycleService;
 use Splicewire\Beam\Workflows\Control\WorkflowRunner;
@@ -194,6 +196,27 @@ it('reports an unregistered guard as the refusal, failing closed in the projecti
     $close = collect(app(LifecycleService::class)->projection($ticket)['transitions'])->firstWhere('name', 'close');
 
     expect($close['reason'])->toBe('Guard [nobody_registered_me] is not registered.');
+});
+
+it('says a move the engine refuses with no guard to blame in plain words, never by its machine name', function () {
+    // An engine that offers nothing and names no guard: the one refusal the projection cannot attribute to a rule,
+    // and a sentence a person reads. It used to embed the transition's name in brackets.
+    app()->singleton(WorkflowRunner::class, fn ($app) => new class($app->make(DefinitionBuilder::class), $app->make(WorkflowFactory::class), $app->make(StatusEmitter::class), $app->make(GuardRegistry::class)) extends WorkflowRunner
+    {
+        public function enabled(WorkflowBlueprint $blueprint, object $subject, string $markingProperty = 'marking'): array
+        {
+            return [];
+        }
+    });
+    app()->forgetInstance(LifecycleService::class);
+
+    $ticket = SupportTicket::create(['status' => 'open']);
+    $triage = collect(app(LifecycleService::class)->projection($ticket)['transitions'])->firstWhere('name', 'triage');
+
+    expect($triage['guard'])->toBeNull()
+        ->and($triage['reason'])->toBe("That step isn't available from where it is now.")
+        ->and($triage['reason'])->not->toContain('triage')
+        ->and($triage['reason'])->not->toContain('[');
 });
 
 it('applies the transition even when the Display emission blows up', function () {

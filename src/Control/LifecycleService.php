@@ -378,9 +378,10 @@ class LifecycleService
         }
 
         // A move out of here that is not enabled has a blocking guard; the fallback covers a refusal the
-        // engine could not attribute (no guard answered), which it must still not report silently.
+        // engine could not attribute (no guard answered), which it must still not report silently. A person
+        // reads this sentence, so it is plain words and never the transition's machine name (`submit_for_review`).
         return $this->runner->guardVerdict($transition->guard, $subject)
-            ?? "[{$transition->name}] is not available from the current state.";
+            ?? "That step isn't available from where it is now.";
     }
 
     /** Freeze a definition for an action while preserving an existing subject pin. */
