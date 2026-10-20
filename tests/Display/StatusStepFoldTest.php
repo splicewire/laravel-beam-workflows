@@ -79,3 +79,29 @@ it('reads skips from the newest run only', function () {
         stepFoldEvent('running', 'subscription', 'r2'), stepFoldEvent('complete', run: 'r2'),
     ]))->toBe([['subscription', 'done']]);
 });
+
+/*
+ * A step that skipped and then starts again in the same run (a retry) is running, and later done: the reason it gave for
+ * doing nothing is about the attempt that skipped, so it goes when the step restarts rather than riding along on a step
+ * that is doing something.
+ */
+it('clears a skipped step\'s reason when the step starts again, through running and done', function () {
+    $restarted = [
+        stepFoldEvent('running', 'subscription', message: 'Creating subscription'),
+        stepFoldEvent('skipped', 'subscription', message: 'no plan selected'),
+        stepFoldEvent('running', 'subscription', message: 'Creating subscription'),
+    ];
+    $row = fn (array $events) => array_map(fn (StatusStepData $s) => [$s->ref, $s->state, $s->reason], StatusStepData::fold($events));
+
+    expect($row($restarted))->toBe([['subscription', 'running', null]])
+        ->and($row([...$restarted, stepFoldEvent('complete')]))->toBe([['subscription', 'done', null]]);
+});
+
+it('keeps the reason of a step that skipped a second time', function () {
+    expect(array_map(fn (StatusStepData $s) => [$s->state, $s->reason], StatusStepData::fold([
+        stepFoldEvent('running', 'subscription', message: 'Creating subscription'),
+        stepFoldEvent('skipped', 'subscription', message: 'no plan selected'),
+        stepFoldEvent('running', 'subscription', message: 'Creating subscription'),
+        stepFoldEvent('skipped', 'subscription', message: 'the plan is not in the catalog'),
+    ])))->toBe([['skipped', 'the plan is not in the catalog']]);
+});

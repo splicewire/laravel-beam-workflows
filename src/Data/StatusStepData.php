@@ -70,6 +70,9 @@ class StatusStepData extends BeamData
                 }
                 $steps[$event->ref] ??= new self($event->ref, (string) ($event->message ?? $event->ref), self::RUNNING);
                 $steps[$event->ref]->state = self::RUNNING;
+                // A step that skipped and starts again in the same run is doing something now: the reason it gave for
+                // doing nothing belongs to the attempt that skipped, so it does not ride along on running or done.
+                $steps[$event->ref]->reason = null;
                 $open = $event->ref;
             } elseif ($event->state === 'skipped' && $event->ref !== null) {
                 $steps[$event->ref] ??= new self($event->ref, $event->ref, self::SKIPPED);
