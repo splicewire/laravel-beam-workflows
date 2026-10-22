@@ -12,18 +12,29 @@ use Splicewire\Beam\Workflows\Definition\DefinitionStore;
 use Splicewire\Beam\Workflows\Type\Concerns\WorkflowManaged as WorkflowManagedTrait;
 use Splicewire\Beam\Workflows\Type\Contracts\WorkflowManaged;
 
-class ParticipatingTicket extends Model implements WorkflowManaged, ParticipatesInWorkflowTransaction
+class ParticipatingTicket extends Model implements ParticipatesInWorkflowTransaction, WorkflowManaged
 {
     use WorkflowManagedTrait;
+
     protected $table = 'participating_tickets';
+
     protected $guarded = [];
+
     public $timestamps = false;
+
     public static bool $refuse = false;
-    public function workflowType(): string { return 'participating-ticket'; }
+
+    public function workflowType(): string
+    {
+        return 'participating-ticket';
+    }
+
     public function participateInWorkflowTransaction(string $transition, TransitionContext $context): void
     {
         $this->getConnection()->table('participant_writes')->insert(['actor' => $context->actor, 'before_status' => $this->status]);
-        if (self::$refuse) { throw new RuntimeException('participant refused'); }
+        if (self::$refuse) {
+            throw new RuntimeException('participant refused');
+        }
     }
 }
 
@@ -31,9 +42,15 @@ beforeEach(function () {
     ParticipatingTicket::$refuse = false;
     Illuminate\Database\Eloquent\Relations\Relation::morphMap(['participating_ticket' => ParticipatingTicket::class]);
     Schema::create('participating_tickets', function (Blueprint $t) {
-        $t->increments('id'); $t->string('status')->default('draft'); $t->uuid('workflow_version')->nullable();
+        $t->increments('id');
+        $t->string('status')->default('draft');
+        $t->uuid('workflow_version')->nullable();
     });
-    Schema::create('participant_writes', function (Blueprint $t) { $t->increments('id'); $t->string('actor')->nullable(); $t->string('before_status'); });
+    Schema::create('participant_writes', function (Blueprint $t) {
+        $t->increments('id');
+        $t->string('actor')->nullable();
+        $t->string('before_status');
+    });
     app(DefinitionStore::class)->ensureSystemLineage('participant.lifecycle', 'Participant', WorkflowBlueprint::fromArray([
         'name' => 'participant.lifecycle', 'places' => ['draft', 'published'], 'initial' => ['draft'],
         'transitions' => [['name' => 'publish', 'from' => 'draft', 'to' => 'published']],
@@ -61,15 +78,16 @@ it('rolls back participant writes and workflow history together on failure', fun
 });
 
 it('uses the same participant for scheduled execution and durable retries', function () {
-    app(\Splicewire\Beam\Workflows\Control\SubjectResolverRegistry::class)->register('participant', fn ($id) => ParticipatingTicket::find($id));
-    app()->instance(\Splicewire\Beam\Workflows\Actions\Contracts\WorkflowActionAuthority::class,
-        new class implements \Splicewire\Beam\Workflows\Actions\Contracts\WorkflowActionAuthority {
-            public function authorize(Model $subject, string $transition, \Splicewire\Beam\Workflows\Actions\WorkflowActionContext $context): void {}
+    app(Splicewire\Beam\Workflows\Control\SubjectResolverRegistry::class)->register('participant', fn ($id) => ParticipatingTicket::find($id));
+    app()->instance(Splicewire\Beam\Workflows\Actions\Contracts\WorkflowActionAuthority::class,
+        new class implements Splicewire\Beam\Workflows\Actions\Contracts\WorkflowActionAuthority
+        {
+            public function authorize(Model $subject, string $transition, Splicewire\Beam\Workflows\Actions\WorkflowActionContext $context): void {}
         });
     $ticket = ParticipatingTicket::create([]);
-    $service = app(\Splicewire\Beam\Workflows\Actions\WorkflowActionService::class);
-    $context = new \Splicewire\Beam\Workflows\Actions\WorkflowActionContext('user:reviewer', 'user:author', 'tenant:test');
-    $data = $service->prepare(new \Splicewire\Beam\Workflows\Actions\Data\WorkflowActionData('participant', (string) $ticket->id, 'publish'), $context);
+    $service = app(Splicewire\Beam\Workflows\Actions\WorkflowActionService::class);
+    $context = new Splicewire\Beam\Workflows\Actions\WorkflowActionContext('user:reviewer', 'user:author', 'tenant:test');
+    $data = $service->prepare(new Splicewire\Beam\Workflows\Actions\Data\WorkflowActionData('participant', (string) $ticket->id, 'publish'), $context);
     $first = $service->execute('release:scheduled', $data, $context);
     $again = $service->execute('release:scheduled', $data, $context);
     expect($first->applied)->toBeTrue()->and($again->transitionId)->toBe($first->transitionId)
