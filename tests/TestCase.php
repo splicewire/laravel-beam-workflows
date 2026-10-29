@@ -53,7 +53,9 @@ abstract class TestCase extends Orchestra
      * an integer subject id in a `uuid` column is invisible here and a hard error there.
      *
      * Name a THROWAWAY database this run owns: every table in it is dropped before each test (see
-     * {@see self::setUp()}), the way a fresh `:memory:` database starts empty.
+     * {@see self::setUp()}), the way a fresh `:memory:` database starts empty. So the name must carry a
+     * disposable prefix ({@see self::refuseNonDisposableDatabase()}), checked here before anything connects
+     * and again beside the drop — a direct `pest` run can never wipe a real database.
      *
      * @return array<string, mixed>
      */
@@ -64,6 +66,8 @@ abstract class TestCase extends Orchestra
         if (! $database) {
             return ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => ''];
         }
+
+        static::refuseNonDisposableDatabase($database);
 
         return [
             'driver' => 'pgsql',
@@ -79,12 +83,35 @@ abstract class TestCase extends Orchestra
         ];
     }
 
+    /**
+     * The suite drops every table in a Postgres database, so it refuses one whose name does not start with
+     * a disposable prefix and run past it: `BEAM_DEV_DB_PREFIX` when set (the family's scratch-database
+     * prefix), otherwise `ttc_` or `test_`.
+     */
+    protected static function refuseNonDisposableDatabase(string $database): void
+    {
+        $prefixes = getenv('BEAM_DEV_DB_PREFIX') ? [getenv('BEAM_DEV_DB_PREFIX')] : ['ttc_', 'test_'];
+
+        foreach ($prefixes as $prefix) {
+            if (str_starts_with($database, $prefix) && strlen($database) > strlen($prefix)) {
+                return;
+            }
+        }
+
+        throw new \RuntimeException(
+            "Refusing PG_TEST_DATABASE `{$database}`: the suite drops every table in it, so it must be a throwaway "
+            .'database named with a disposable prefix ('.implode(' or ', $prefixes).').'
+        );
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        // A server database outlives the test; `:memory:` does not. Start each test as empty as sqlite does.
+        // A server database outlives the test; `:memory:` does not. Start each test as empty as sqlite does —
+        // but only in a database whose name says it is disposable (re-checked against the live connection).
         if (Schema::getConnection()->getDriverName() === 'pgsql') {
+            static::refuseNonDisposableDatabase((string) Schema::getConnection()->getDatabaseName());
             Schema::dropAllTables();
         }
 

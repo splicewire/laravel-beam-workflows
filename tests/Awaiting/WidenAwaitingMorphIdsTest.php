@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint as TableBlueprint;
@@ -19,6 +20,17 @@ use Splicewire\Beam\Workflows\Awaiting\WorkflowAwaiting;
 class WidenedAwaitingSubject extends Model
 {
     protected $table = 'widened_awaiting_subjects';
+
+    protected $guarded = [];
+
+    public $timestamps = false;
+}
+
+class WidenedAwaitingUuidSubject extends Model
+{
+    use HasUuids;
+
+    protected $table = 'widened_awaiting_uuid_subjects';
 
     protected $guarded = [];
 
@@ -66,6 +78,10 @@ beforeEach(function () {
         $table->id();
         $table->string('name');
     });
+    Schema::create('widened_awaiting_uuid_subjects', function (TableBlueprint $table) {
+        $table->uuid('id')->primary();
+        $table->string('name');
+    });
 
     // TestCase builds the table from the current create stub; these tests need a host's older one.
     Schema::dropIfExists('workflow_awaitings');
@@ -104,6 +120,59 @@ it('widens an already-migrated host\'s UUID morph ids to strings, so an integer 
     $reports = ConvergentTable::rehearse(fn () => awaitingsStub('create_workflow_awaitings_table')->up());
     expect($reports)->toHaveCount(1)
         ->and($reports[0]->unchanged())->toBeTrue();
+});
+
+it('keeps every row an already-migrated host holds when it widens', function () {
+    // A host's table is not empty: it holds UUID subjects stamped while the column was `uuid`. The ALTER
+    // must carry each one across unchanged — ids, principals, enter times, both morphs — and the natural
+    // key must still de-duplicate them. Only a typed driver has anything to convert.
+    if (Schema::getConnection()->getDriverName() !== 'pgsql') {
+        $this->markTestSkipped('A typed driver only: on sqlite uuid already compiles to varchar and the ALTER never runs.');
+    }
+
+    createPublishedUuidAwaitingsTable();
+    $store = app(AwaitingStore::class);
+    $subject = WidenedAwaitingUuidSubject::create(['name' => 'uuid-keyed subject']);
+    $parent = WidenedAwaitingUuidSubject::create(['name' => 'uuid-keyed parent']);
+
+    $store->stamp($subject, 'review', 'role:reviewer', $parent->getMorphClass(), (string) $parent->getKey());
+    $store->stamp($subject, 'review', 'owner:');
+    $store->stamp($parent, 'approve', 'role:approver');
+
+    $snapshot = fn () => WorkflowAwaiting::query()->orderBy('principal')->get()
+        ->map(fn (WorkflowAwaiting $row) => [
+            'id' => (string) $row->id,
+            'subject_type' => $row->subject_type,
+            'subject_id' => (string) $row->subject_id,
+            'place' => $row->place,
+            'principal' => $row->principal,
+            'parent_type' => $row->parent_type,
+            'parent_id' => $row->parent_id === null ? null : (string) $row->parent_id,
+            'created_at' => $row->created_at?->format('Y-m-d H:i:s.u'),
+        ])->all();
+    $before = $snapshot();
+    expect($before)->toHaveCount(3)
+        ->and(awaitingMorphColumns()['subject_id']['type_name'])->toBe('uuid');
+
+    awaitingsStub('widen_workflow_awaitings_morph_ids_to_string')->up();
+
+    expect(awaitingMorphColumns()['subject_id']['type_name'])->toBe('character varying')
+        ->and(awaitingMorphColumns()['parent_id']['type_name'])->toBe('character varying')
+        ->and($snapshot())->toBe($before);
+
+    // Morphs still resolve to the same models.
+    $row = WorkflowAwaiting::query()->where('principal', 'role:reviewer')->sole();
+    expect($row->subject->is($subject))->toBeTrue()
+        ->and($row->parent->is($parent))->toBeTrue()
+        ->and(WorkflowAwaiting::query()->where('principal', 'role:approver')->sole()->subject->is($parent))->toBeTrue();
+
+    // The natural key still de-duplicates a pre-existing row: a repeat stamp adds nothing, keeps the enter time.
+    $store->stamp($subject, 'review', 'role:reviewer', $parent->getMorphClass(), (string) $parent->getKey());
+    expect($snapshot())->toBe($before);
+
+    // And the widened table now also takes an integer subject beside them.
+    $store->stamp(WidenedAwaitingSubject::create(['name' => 'integer-keyed']), 'review', 'role:reviewer');
+    expect(WorkflowAwaiting::query()->count())->toBe(4);
 });
 
 it('is a no-op on a table the current create stub made, and safe to run twice', function () {
