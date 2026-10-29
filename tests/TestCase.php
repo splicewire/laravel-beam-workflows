@@ -43,16 +43,50 @@ abstract class TestCase extends Orchestra
     protected function defineEnvironment($app): void
     {
         $app['config']->set('database.default', 'testing');
-        $app['config']->set('database.connections.testing', [
-            'driver' => 'sqlite',
-            'database' => ':memory:',
+        $app['config']->set('database.connections.testing', static::suiteConnection());
+    }
+
+    /**
+     * sqlite `:memory:` by default. `PG_TEST_DATABASE` re-points the whole suite at a real Postgres
+     * database (laravel-beam-tenancy's `PostgresTestCase` precedent; `PG_TEST_HOST/PORT/USERNAME/PASSWORD`
+     * optional), because sqlite stores any value in any column and so cannot see a key-type mismatch —
+     * an integer subject id in a `uuid` column is invisible here and a hard error there.
+     *
+     * Name a THROWAWAY database this run owns: every table in it is dropped before each test (see
+     * {@see self::setUp()}), the way a fresh `:memory:` database starts empty.
+     *
+     * @return array<string, mixed>
+     */
+    protected static function suiteConnection(): array
+    {
+        $database = getenv('PG_TEST_DATABASE');
+
+        if (! $database) {
+            return ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => ''];
+        }
+
+        return [
+            'driver' => 'pgsql',
+            'host' => getenv('PG_TEST_HOST') ?: '127.0.0.1',
+            'port' => (int) (getenv('PG_TEST_PORT') ?: 5432),
+            'database' => $database,
+            'username' => getenv('PG_TEST_USERNAME') ?: 'postgres',
+            'password' => getenv('PG_TEST_PASSWORD') ?: '',
+            'charset' => 'utf8',
             'prefix' => '',
-        ]);
+            'search_path' => 'public',
+            'sslmode' => 'prefer',
+        ];
     }
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        // A server database outlives the test; `:memory:` does not. Start each test as empty as sqlite does.
+        if (Schema::getConnection()->getDriverName() === 'pgsql') {
+            Schema::dropAllTables();
+        }
 
         $this->createActivityLogTable();
         $this->createDefinitionStoreTables();
