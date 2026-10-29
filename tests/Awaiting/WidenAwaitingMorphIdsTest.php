@@ -156,8 +156,8 @@ it('keeps every row an already-migrated host holds when it widens', function () 
 
     awaitingsStub('widen_workflow_awaitings_morph_ids_to_string')->up();
 
-    expect(awaitingMorphColumns()['subject_id']['type_name'])->toBe('character varying')
-        ->and(awaitingMorphColumns()['parent_id']['type_name'])->toBe('character varying')
+    expect(awaitingMorphColumns()['subject_id']['type_name'])->toBe('varchar')
+        ->and(awaitingMorphColumns()['parent_id']['type_name'])->toBe('varchar')
         ->and($snapshot())->toBe($before);
 
     // Morphs still resolve to the same models.
