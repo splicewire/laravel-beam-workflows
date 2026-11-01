@@ -24,13 +24,13 @@ it('maps a persisted WorkflowAwaiting row onto the Data class with no project() 
     $row = WorkflowAwaitingRowData::from($awaiting);
 
     expect($row->id)->toBe($awaiting->id)
-        ->and($row->subject_type)->toBe('composition')
-        ->and($row->subject_id)->toBe($awaiting->subject_id)
+        ->and($row->subjectType)->toBe('composition')
+        ->and($row->subjectId)->toBe($awaiting->subject_id)
         ->and($row->place)->toBe('review')
         ->and($row->principal)->toBe('role:reviewer')
-        ->and($row->parent_type)->toBeNull()
-        ->and($row->parent_id)->toBeNull()
-        ->and($row->created_at)->toBeString();
+        ->and($row->parentType)->toBeNull()
+        ->and($row->parentId)->toBeNull()
+        ->and($row->createdAt)->toBeString();
 });
 
 it('is registered as a read-only #[ParticleResource] keyed workflow-awaiting', function () {

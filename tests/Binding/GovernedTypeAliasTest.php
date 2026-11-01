@@ -54,7 +54,7 @@ it('shows an aliased governed type by its alias on the Workflow Queue', function
     expect(app(WorkflowBindingRegistry::class)->forObject($post, app(TypeIdentityResolver::class)))->not->toBeNull();
     app(EloquentAwaitingStore::class)->stamp($post, 'review', 'role:editor');
 
-    expect(WorkflowAwaitingRowData::from(WorkflowAwaiting::query()->sole())->subject_type)->toBe('aliased_post');
+    expect(WorkflowAwaitingRowData::from(WorkflowAwaiting::query()->sole())->subjectType)->toBe('aliased_post');
 });
 
 it('refuses a governed type without a morph alias the first time it resolves as governed, naming the class and the fix', function () {
