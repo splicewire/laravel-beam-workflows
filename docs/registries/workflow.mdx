@@ -1,0 +1,65 @@
+---
+title: Workflow capabilities
+segment: workflow
+nav_order: 100
+excerpt: The state-machine capabilities a circuit node dispatches to, workflow.apply among them.
+---
+
+# Workflow capabilities
+
+`workflow` holds the workflows package's **capabilities**: popcorn `Invocable`s that a circuit node
+can dispatch to. Each entry is keyed by its own name. The package always registers two:
+
+- `workflow.apply` runs one transition of a named [blueprint](beam.workflows.blueprints) as a pure
+  calculation. The marking travels in the node's input and output, and persisting it stays the
+  host's job.
+- `workflow.subject-transition` moves a real, governed record through its lifecycle, and needs the
+  `workflow.transition` ability.
+
+{/* registry-facts:start — generated from the #[IsRegistry] declaration by `splicewire:beam:docs:registries:scaffold`. Rerun the command; do not edit between these markers. */}
+
+- **Root:** `workflow`
+- **Entries:** `Rushing\Popcorn\Contracts\Invocable`
+- **Duplicate keys:** Supersede — a later registration under a taken key replaces the earlier entry, in its place
+- **Population:** Optional — an empty registry is normal
+- **Order:** `100` (display order, ascending)
+- **Declared by:** `Splicewire\Beam\Workflows\Control\WorkflowInvocableRegistry`
+
+{/* registry-facts:end */}
+
+## Always registered
+
+Both capabilities are registered whether or not a circuit engine is installed. Whether any node ever
+dispatches to them is the host's decision, not a condition on whether they exist, so the registry's
+contents are the same on every host.
+
+## Renaming the apply node
+
+The `workflow.apply` name comes from `beam.workflows.node_capability` in config. A host can rename
+the leaf, but the root stays: a name you configure is placed under `workflow`, so a capability can
+never be moved out of this package's root by configuration.
+
+## Adding a capability
+
+Register an `Invocable` from a provider; it keys itself by its name:
+
+```php
+app(WorkflowInvocableRegistry::class)->register(app(MyWorkflowInvocable::class));
+```
+
+The duplicate policy is **supersede**, so registering under a taken name replaces that capability.
+
+## Who reads it
+
+A circuit host exposes these as nodes. Tower, for example, offers `workflow.subject-transition` as
+its "Change workflow stage" node and forwards each run to the entry here.
+
+## Related registries
+
+- [`beam.workflows.blueprints`](beam.workflows.blueprints): the definitions `workflow.apply` runs.
+- [The workflows cluster](beam.workflows): the rest of the package's registries.
+
+## Going deeper
+
+The source is
+[`WorkflowInvocableRegistry`](https://github.com/splicewire/laravel-beam-workflows/blob/main/src/Control/WorkflowInvocableRegistry.php).

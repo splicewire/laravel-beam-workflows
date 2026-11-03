@@ -1,0 +1,69 @@
+---
+title: Workflow effects
+segment: beam.workflows.effects
+nav_order: 34
+excerpt: Named reactions that run after a transition lands, such as a notification or a cleanup.
+---
+
+# Workflow effects
+
+`beam.workflows.effects` holds every **effect**: code that runs after a transition has been applied,
+such as notifying someone, calling a webhook or releasing a resource. It mirrors
+[guards](beam.workflows.guards). A transition names its effects and fills their params, and the code
+itself lives here, so a definition never carries executable logic.
+
+{/* registry-facts:start — generated from the #[IsRegistry] declaration by `splicewire:beam:docs:registries:scaffold`. Rerun the command; do not edit between these markers. */}
+
+- **Root:** `beam.workflows.effects`
+- **Entries:** `callable`
+- **Duplicate keys:** Supersede — a later registration under a taken key replaces the earlier entry, in its place
+- **Population:** Optional — an empty registry is normal
+- **Order:** `34` (display order, ascending)
+- **Declared by:** `Splicewire\Beam\Workflows\Control\TransitionEffectRegistry`
+
+{/* registry-facts:end */}
+
+## Registering an effect
+
+An effect receives the `WorkflowTransitioned` event and the params the definition set for it:
+
+```php
+use Splicewire\Beam\Workflows\Control\TransitionEffectRegistry;
+
+app(TransitionEffectRegistry::class)->register(
+    'training-run.release',
+    app(ReleaseWorkloadEffect::class),
+    label: "Release the run's cloud workload",
+);
+```
+
+**Pass `label:` and `paramsSchema:` by name.** A positional label lands in the `$by` slot, which is
+also a string, so nothing fails and the label is quietly lost.
+
+The package registers one effect itself: `workflow.await`, which notifies the named recipients and
+adds a "waiting on you" item to their inbox. It stays dormant until the host binds a store for those
+items.
+
+## Effects never undo a transition
+
+Effects run after the transition is committed, one at a time, and each is isolated: an effect that
+throws is reported and the next one still runs. A failing notification can never roll back the
+state change that triggered it. Anything that must decide whether the transition happens belongs in
+a guard instead.
+
+## Who reads it
+
+- The lifecycle service, after each transition, for the effects that transition names.
+- The blueprint validator, which rejects a definition that names an unregistered effect.
+- The Workflows admin and editor, which offer the effect catalog (name, label and params schema) as a
+  menu.
+
+## Related registries
+
+- [`beam.workflows.guards`](beam.workflows.guards): the before-the-move counterpart.
+- [The workflows cluster](beam.workflows): how the six fit together.
+
+## Going deeper
+
+The source is
+[`TransitionEffectRegistry`](https://github.com/splicewire/laravel-beam-workflows/blob/main/src/Control/TransitionEffectRegistry.php).

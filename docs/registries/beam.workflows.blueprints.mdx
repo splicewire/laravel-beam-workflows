@@ -1,0 +1,82 @@
+---
+title: Workflow blueprints
+segment: beam.workflows.blueprints
+nav_order: 30
+excerpt: Named state machines declared in code, the definitions a binding or a circuit node points at.
+---
+
+# Workflow blueprints
+
+`beam.workflows.blueprints` holds every **workflow blueprint** a host declares in code: a named state
+machine with its places, its initial marking and its transitions. A blueprint is referenced by name,
+`composition.lifecycle` or `training-run.lifecycle`, so a binding, a lifecycle service or a circuit
+node can point at one definition instead of carrying the whole thing inline. Every reader drives the
+same definition.
+
+{/* registry-facts:start — generated from the #[IsRegistry] declaration by `splicewire:beam:docs:registries:scaffold`. Rerun the command; do not edit between these markers. */}
+
+- **Root:** `beam.workflows.blueprints`
+- **Entries:** `Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint`
+- **Duplicate keys:** Supersede — a later registration under a taken key replaces the earlier entry, in its place
+- **Population:** Optional — an empty registry is normal
+- **Order:** `30` (display order, ascending)
+- **Declared by:** `Splicewire\Beam\Workflows\Control\WorkflowRegistry`
+
+{/* registry-facts:end */}
+
+## Registering a blueprint
+
+Register from a service provider's `boot()`. The entry is always a hydrated `WorkflowBlueprint`, but
+`register()` also accepts the array form and hydrates it for you, so a workflow kept as config data
+works unchanged:
+
+```php
+use Splicewire\Beam\Workflows\Control\WorkflowRegistry;
+
+app(WorkflowRegistry::class)->register('article.lifecycle', [
+    'name' => 'article.lifecycle',
+    'places' => ['draft', 'review', 'published'],
+    'transitions' => [
+        ['name' => 'submit', 'from' => 'draft', 'to' => 'review'],
+        ['name' => 'publish', 'from' => 'review', 'to' => 'published', 'guard' => 'article.has-editor'],
+    ],
+]);
+```
+
+The initial marking defaults to the first place. A transition names its guard and its effects as
+strings; those resolve through [`beam.workflows.guards`](beam.workflows.guards) and
+[`beam.workflows.effects`](beam.workflows.effects) when the transition runs. Hydration checks that
+every transition's places exist, so a typo fails at registration rather than at the first move.
+
+## Who reads it
+
+- The lifecycle service, when a type's [binding](beam.workflows.bindings) names a definition that has
+  no stored version yet. Stored, versioned definitions take precedence, and a record already pinned
+  to a version stays on it.
+- The `workflow.apply` capability in [`workflow`](workflow), which a circuit node points at a
+  blueprint by name.
+- An advisory doctor audit that flags blueprints whose transitions can leave a record in several
+  places at once, which a lifecycle cannot persist.
+
+## Keys are dotted names
+
+`composition.lifecycle` is two key segments, not one opaque string. Don't register both
+`composition` and `composition.lifecycle`: the shorter name would then be a branch as well as a
+leaf, and resolving it fails as ambiguous rather than guessing.
+
+## Overriding a blueprint
+
+The duplicate policy is **supersede**: register your own blueprint under the package's name from a
+provider that boots later, and yours is the definition every reader gets.
+
+## Related registries
+
+- [`beam.workflows.bindings`](beam.workflows.bindings): which type a blueprint governs.
+- [The workflows cluster](beam.workflows): how the six fit together.
+
+## Going deeper
+
+The source is
+[`WorkflowRegistry`](https://github.com/splicewire/laravel-beam-workflows/blob/main/src/Control/WorkflowRegistry.php),
+and the blueprint shape is
+[`WorkflowBlueprint`](https://github.com/splicewire/laravel-beam-workflows/blob/main/src/Blueprint/WorkflowBlueprint.php).

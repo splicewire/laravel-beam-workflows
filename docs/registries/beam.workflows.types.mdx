@@ -1,0 +1,54 @@
+---
+title: Workflow types
+segment: beam.workflows.types
+nav_order: 31
+excerpt: The governable type keys, with their labels, that the Workflows admin offers in its dropdown.
+---
+
+# Workflow types
+
+`beam.workflows.types` is the list of **governable types** a host knows about: each type key
+(`composition`, `training-run`, `page`) with a human label. A type key is declared per model by
+`workflowType()`, so nothing else can enumerate them; this registry is that enumeration, and the
+Workflows admin uses it to offer a dropdown of types instead of a free-text field.
+
+{/* registry-facts:start — generated from the #[IsRegistry] declaration by `splicewire:beam:docs:registries:scaffold`. Rerun the command; do not edit between these markers. */}
+
+- **Root:** `beam.workflows.types`
+- **Entries:** `string`
+- **Duplicate keys:** Supersede — a later registration under a taken key replaces the earlier entry, in its place
+- **Population:** Optional — an empty registry is normal
+- **Order:** `31` (display order, ascending)
+- **Declared by:** `Splicewire\Beam\Workflows\Type\WorkflowTypeRegistry`
+
+{/* registry-facts:end */}
+
+## Registering a type
+
+The key is the type, the entry is its label. Leave the label out and one is derived from the key:
+
+```php
+use Splicewire\Beam\Workflows\Type\WorkflowTypeRegistry;
+
+app(WorkflowTypeRegistry::class)
+    ->register('page', 'Page')
+    ->register('component', 'Component');
+```
+
+The admin lists types in the order they were registered.
+
+## A menu, not a switch
+
+Registering a type here does not govern it. A type can be listed and still unmanaged, and a
+[binding](beam.workflows.bindings) can govern a type that was never listed. Whether a record is
+governed is decided by bindings alone; this registry only makes the choice easy to offer.
+
+## Related registries
+
+- [`beam.workflows.bindings`](beam.workflows.bindings): the switch this menu feeds.
+- [The workflows cluster](beam.workflows): how the six fit together.
+
+## Going deeper
+
+The source is
+[`WorkflowTypeRegistry`](https://github.com/splicewire/laravel-beam-workflows/blob/main/src/Type/WorkflowTypeRegistry.php).

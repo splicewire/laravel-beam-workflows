@@ -1,0 +1,60 @@
+---
+title: The workflows cluster
+segment: beam.workflows
+nav_order: 29
+excerpt: The six registries that turn a model into a governed lifecycle, and which one you reach for.
+---
+
+# The workflows cluster
+
+Everything under `beam.workflows.` is the machinery behind
+[workflows](/beam/docs/laravel/workflows): a governed lifecycle with legal transitions, guards and an
+audited history, attached to a kind of record instead of a bare `status` string. All six registries
+are declared by
+[`splicewire/laravel-beam-workflows`](https://github.com/splicewire/laravel-beam-workflows), and you
+fill them from a service provider's `boot()`.
+
+Which one you reach for:
+
+- **Declare a state machine in code**: [`beam.workflows.blueprints`](beam.workflows.blueprints).
+- **Offer a type in the Workflows admin dropdown**: [`beam.workflows.types`](beam.workflows.types).
+- **Turn governance on for a type**: [`beam.workflows.bindings`](beam.workflows.bindings).
+- **Block a transition unless a rule holds**: [`beam.workflows.guards`](beam.workflows.guards).
+- **Do something after a transition lands**: [`beam.workflows.effects`](beam.workflows.effects).
+- **Let the generic endpoints find your record by id**:
+  [`beam.workflows.subject-resolvers`](beam.workflows.subject-resolvers).
+
+The package also owns one root outside this prefix: [`workflow`](workflow), the state-machine
+capabilities a circuit node dispatches to.
+
+## How they fit together
+
+A **binding** is the switch. It says "records of type `article` are governed by the definition
+`article.lifecycle`", and when no binding exists the record is simply unmanaged. The definition it
+names is either a stored, versioned definition or a **blueprint** registered in code. A blueprint's
+transitions name **guards** and **effects** by reference, and those references resolve here, so a
+definition stays plain data that an editor can store and change without ever carrying executable
+code. **Types** are only the menu the admin screen offers when you create a binding, and
+**subject resolvers** let the generic workflow endpoints turn a `kind` and an id back into a model.
+
+A typical package wires a lifecycle in one place:
+
+```php
+app(WorkflowRegistry::class)->register('training-run.lifecycle', TrainingRunLifecycle::blueprint());
+app(WorkflowTypeRegistry::class)->register('training-run', 'Training run');
+app(WorkflowBindingRegistry::class)->bind('training-run', 'training-run.lifecycle');
+app(GuardRegistry::class)->register('gpu-quota', app(GpuQuotaGuard::class), label: 'GPU quota available');
+```
+
+## What a duplicate means here
+
+All six **supersede**: registering a key that is already taken replaces the entry. For blueprints,
+guards and effects that is how your application overrides what a package ships. For bindings it is
+the rule that one lifecycle governs one type: binding a type again replaces the earlier binding, and
+the replacement is logged so a double bind is visible rather than silent.
+
+## Going deeper
+
+[Workflows: govern a lifecycle in code](/beam/docs/laravel/workflows) walks the whole path, from a
+managed model to the admin screen. [Popcorn registries](/beam/docs/foundations/registries) explains
+roots, keys and duplicate policies in general.

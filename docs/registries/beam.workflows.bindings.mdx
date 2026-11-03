@@ -1,0 +1,77 @@
+---
+title: Workflow bindings
+segment: beam.workflows.bindings
+nav_order: 32
+excerpt: Which definition governs which type. A binding existing is the enable; its absence is the disable.
+---
+
+# Workflow bindings
+
+`beam.workflows.bindings` is the switch that makes a type **managed**. Each entry is a `Binding`
+saying "records of type `$typeKey` are governed by the definition `$lineageRef`, with these guard
+params". There is no flag and no environment variable: a binding existing is the enable, and its
+absence is the disable. An empty registry is therefore a normal state, meaning nothing is governed.
+
+{/* registry-facts:start — generated from the #[IsRegistry] declaration by `splicewire:beam:docs:registries:scaffold`. Rerun the command; do not edit between these markers. */}
+
+- **Root:** `beam.workflows.bindings`
+- **Entries:** `Splicewire\Beam\Workflows\Binding\Binding`
+- **Duplicate keys:** Supersede — a later registration under a taken key replaces the earlier entry, in its place
+- **Population:** Optional — an empty registry is normal
+- **Order:** `32` (display order, ascending)
+- **Declared by:** `Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry`
+
+{/* registry-facts:end */}
+
+## Binding a type
+
+`bind()` is the everyday spelling:
+
+```php
+use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
+
+app(WorkflowBindingRegistry::class)->bind('training-run', 'training-run.lifecycle');
+```
+
+The second argument names a definition lineage. When the lifecycle governs a record it looks for the
+record's pinned version first, then the lineage's active stored version, then a
+[blueprint](beam.workflows.blueprints) registered under that name. `unbind()` removes a binding: new
+records stop being governed, and records already running keep their pinned version until you migrate
+them.
+
+## Who fills it
+
+Packages that ship a lifecycle bind their own type at boot, usually only when the host hasn't bound
+it already (`if (! $bindings->has($type))`), so a host's choice wins. Hosts that let operators edit
+bindings in the Workflows admin keep them in a tenant table and hydrate this registry from it per
+tenant; the registry can be forgotten and refilled for exactly that reason.
+
+## How a record finds its binding
+
+A record can answer to more than one type key, most specific first: a schema-driven record has its
+schema's key and its class's key. The first key with a binding wins, so binding a schema overrides
+the class-level binding for that schema only. A model that resolves as governed must have a morph
+alias, so its waiting items never show a class name in the queue.
+
+## Keys keep their host spelling
+
+Type keys come from your models and from schema names, so this registry accepts both dotted keys
+(`anchor.review`) and slash-separated ones (`acme/press-release`) and keeps the original spelling on
+the binding. A malformed key is a miss when read and an error when written.
+
+## What a duplicate means here
+
+The duplicate policy is **supersede**, and here it is the rule that one lifecycle governs one type.
+Binding a type again replaces the earlier binding, and the replacement is logged with its old and
+new lineage, so a double bind is visible rather than silent.
+
+## Related registries
+
+- [`beam.workflows.types`](beam.workflows.types): the menu of types to bind.
+- [`beam.workflows.blueprints`](beam.workflows.blueprints): the code definitions a binding can name.
+- [The workflows cluster](beam.workflows): how the six fit together.
+
+## Going deeper
+
+The source is
+[`WorkflowBindingRegistry`](https://github.com/splicewire/laravel-beam-workflows/blob/main/src/Binding/WorkflowBindingRegistry.php).

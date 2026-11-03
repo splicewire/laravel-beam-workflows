@@ -1,0 +1,63 @@
+---
+title: Workflow subject resolvers
+segment: beam.workflows.subject-resolvers
+nav_order: 35
+excerpt: One finder per kind, so the generic workflow endpoints can load any managed record by id.
+---
+
+# Workflow subject resolvers
+
+`beam.workflows.subject-resolvers` maps a **kind** slug to a finder that loads the managed record.
+The generic workflow endpoints address a record as a kind plus an id (`workflow-subjects/{kind}/{id}`)
+and use this registry to turn that pair back into a model. Register one line per managed type and the
+generic actuation surface works for it, with no endpoint of your own.
+
+{/* registry-facts:start — generated from the #[IsRegistry] declaration by `splicewire:beam:docs:registries:scaffold`. Rerun the command; do not edit between these markers. */}
+
+- **Root:** `beam.workflows.subject-resolvers`
+- **Entries:** `callable`
+- **Duplicate keys:** Supersede — a later registration under a taken key replaces the earlier entry, in its place
+- **Population:** Optional — an empty registry is normal
+- **Order:** `35` (display order, ascending)
+- **Declared by:** `Splicewire\Beam\Workflows\Control\SubjectResolverRegistry`
+
+{/* registry-facts:end */}
+
+## Registering a resolver
+
+The entry is a callable that takes the id and returns the model, or `null` when there is none:
+
+```php
+use Splicewire\Beam\Workflows\Control\SubjectResolverRegistry;
+
+app(SubjectResolverRegistry::class)->register(
+    'composition',
+    fn (string $id) => Str::isUuid($id) ? Composition::find($id) : null,
+);
+```
+
+Check the id's shape before querying, as above. The id comes straight from a URL, and a value your
+database cannot compare should answer `null`, not raise.
+
+## Unknown means not found
+
+An unregistered kind, a kind that isn't a legal key and a record that doesn't exist all answer
+`null`, and the endpoint turns that into a 404. A garbage slug in a URL stays a 404 rather than
+becoming a server error.
+
+## Two readings of resolve()
+
+`resolve($kind, $id)` runs the finder and returns the model. `resolve($kind)` without an id returns
+the finder itself, the way every other registry returns its entry. Callers that want the model always
+pass the id.
+
+## Related registries
+
+- [`beam.workflows.bindings`](beam.workflows.bindings): which workflow governs the model once it is
+  found.
+- [The workflows cluster](beam.workflows): how the six fit together.
+
+## Going deeper
+
+The source is
+[`SubjectResolverRegistry`](https://github.com/splicewire/laravel-beam-workflows/blob/main/src/Control/SubjectResolverRegistry.php).

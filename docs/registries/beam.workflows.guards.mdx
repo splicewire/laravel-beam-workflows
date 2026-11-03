@@ -1,0 +1,71 @@
+---
+title: Workflow guards
+segment: beam.workflows.guards
+nav_order: 33
+excerpt: The code that decides whether a transition may run, referenced by name from a definition.
+---
+
+# Workflow guards
+
+`beam.workflows.guards` holds every **guard**: a callable that decides whether a transition may run.
+A definition references a guard by name and can fill its params, but it can never carry the guard's
+code. That is what keeps a definition plain data that the workflow editor can store and change
+safely: guards are code, and this registry is the menu of them.
+
+{/* registry-facts:start — generated from the #[IsRegistry] declaration by `splicewire:beam:docs:registries:scaffold`. Rerun the command; do not edit between these markers. */}
+
+- **Root:** `beam.workflows.guards`
+- **Entries:** `callable`
+- **Duplicate keys:** Supersede — a later registration under a taken key replaces the earlier entry, in its place
+- **Population:** Optional — an empty registry is normal
+- **Order:** `33` (display order, ascending)
+- **Declared by:** `Splicewire\Beam\Workflows\Control\GuardRegistry`
+
+{/* registry-facts:end */}
+
+## Registering a guard
+
+A guard receives the record and returns `true` to allow the move, or `false` or a string to block it.
+A string becomes the reason shown to the user. Pass a label and a params schema so the editor can
+offer the guard from a menu:
+
+```php
+use Splicewire\Beam\Workflows\Control\GuardRegistry;
+
+app(GuardRegistry::class)->register(
+    'gpu-quota',
+    app(GpuQuotaGuard::class),
+    label: 'GPU quota available',
+    paramsSchema: GpuQuotaGuard::paramsSchema(),
+);
+```
+
+Closures, first-class callables and invokable objects all work. **Pass `label:` and `paramsSchema:`
+by name.** The third and fourth positions belong to every registry's `$by` and `$ability`, so a
+positional label lands in the wrong slot.
+
+## Who reads it
+
+- The workflow runner, before every guarded transition. A transition whose guard is not registered is
+  **blocked**, never let through: a missing guard is a misconfiguration, and failing closed is the
+  safe direction.
+- The blueprint validator, which rejects a stored definition that names a guard not in this registry.
+- The Workflows admin and editor, which list the guard catalog (name, label and params schema) so an
+  author attaches a guard from the menu. The catalog only lists guards the current user can see.
+
+## Overriding a guard
+
+The duplicate policy is **supersede**: register your own callable under the package's name from a
+provider that boots later, and every definition that names it uses yours.
+
+## Related registries
+
+- [`beam.workflows.effects`](beam.workflows.effects): the same pattern, for what runs after a
+  transition.
+- [The workflows cluster](beam.workflows): how the six fit together.
+
+## Going deeper
+
+[Workflows: govern a lifecycle in code](/beam/docs/laravel/workflows) shows a guard end to end. The
+source is
+[`GuardRegistry`](https://github.com/splicewire/laravel-beam-workflows/blob/main/src/Control/GuardRegistry.php).
