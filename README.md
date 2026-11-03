@@ -30,11 +30,11 @@ A single broadcast listener on emit ends the UI's poll loops.
 
 ## Seam B — state-machine Circuit node type (Control)
 
-A `local` popcorn `Invocable` (`workflow.apply`) registered via the Circuit kernel's
-`CapabilityManifest`. It wraps a [`symfony/workflow`](https://symfony.com/doc/current/workflow.html)
+A `local` popcorn `Invocable` (`workflow.apply`) registered into this package's own `workflow`
+registry. It wraps a [`symfony/workflow`](https://symfony.com/doc/current/workflow.html)
 definition and uses it purely as a transition/guard **calculator** — persistence stays the host's
-job (the marking rides the node's typed port envelope). Registered only when the circuit-engine is
-installed; the Display substrate works without it.
+job (the marking rides the node's typed port envelope). It is always registered, whether or not a
+circuit engine is installed; whether a circuit node dispatches to it is the host's business.
 
 ## Seam C — composition lifecycle (first consumer)
 
@@ -49,3 +49,32 @@ timeline. A UI-driven change to the Display shape can never break execution corr
 Control is owned by the workflow marking store, not the status timeline.
 
 See `docs/adr/` in the app for the ratified Display-vs-Control decision.
+
+## Registries
+
+This package declares seven registries. The [workflows cluster page](docs/registries/beam.workflows.mdx) says
+which one you reach for.
+
+- [`beam.workflows.blueprints`](docs/registries/beam.workflows.blueprints.mdx): named state machines declared in code.
+- [`beam.workflows.bindings`](docs/registries/beam.workflows.bindings.mdx): which definition governs which type.
+- [`beam.workflows.guards`](docs/registries/beam.workflows.guards.mdx): the code that decides whether a transition may run.
+- [`beam.workflows.effects`](docs/registries/beam.workflows.effects.mdx): reactions that run after a transition lands.
+  The package registers the await effect.
+- [`beam.workflows.subject-resolvers`](docs/registries/beam.workflows.subject-resolvers.mdx): one finder per kind, so
+  the generic workflow endpoints can load any managed record.
+- [`beam.workflows.types`](docs/registries/beam.workflows.types.mdx): the governable type keys the Workflows admin offers.
+- [`workflow`](docs/registries/workflow.mdx): the state-machine capabilities a circuit node dispatches to. The package
+  registers `workflow.apply` and the subject invocable.
+
+It registers into registries it doesn't own:
+
+- [`beam.install.steps`](https://github.com/splicewire/laravel-beam/blob/main/docs/registries/beam.install.steps.mdx),
+  owned by `splicewire/laravel-beam`: the install step that publishes the config and tenant migrations.
+- [`beam.doctor.audits`](https://github.com/splicewire/laravel-beam/blob/main/docs/registries/beam.doctor.audits.mdx),
+  owned by `splicewire/laravel-beam`: the migrations audit and the advisory multi-place marking audit.
+- [`beam.particle.operations`](https://github.com/splicewire/laravel-beam/blob/main/docs/registries/beam.particle.operations.mdx),
+  owned by `splicewire/laravel-beam`: the workflow history and reaction operations, registered when the host calls
+  `WorkflowHistoryResources::mount()` or `WorkflowReactionResources::mount()`.
+- [`beam.calendars.action_handlers`](https://github.com/splicewire/laravel-beam-calendars/blob/main/docs/registries/beam.calendars.action_handlers.mdx),
+  owned by `splicewire/laravel-beam-calendars`: the scheduled-transition action handler, only when that package is
+  installed and the host hasn't registered its own.
