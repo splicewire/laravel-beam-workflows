@@ -34,6 +34,12 @@ use Illuminate\Database\Migrations\Migrator;
  *     the migrator with it, when Artisan boots, which is before `splicewire:beam:install` publishes anything.
  *
  * Registering a path twice is harmless: `Migrator::path()` keeps its paths unique.
+ *
+ * **Boundary (not universal rediscovery):** the files are read when the migrator or the `migrate` command is
+ * BUILT. If the `migrate` command was already resolved in this process before a later publish, e.g. a second
+ * `migrate` after a publish that ran in between, that already-built command does not re-read the directory.
+ * The supported sequence is publish (with any re-stamp), then the first `migrate` of the process, which is how
+ * `splicewire:beam:install` orders them. Any later run is a new process and reads the files fresh.
  */
 trait WiresCentralWorkflowMigrations
 {
