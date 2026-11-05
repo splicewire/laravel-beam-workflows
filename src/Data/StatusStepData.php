@@ -41,7 +41,11 @@ class StatusStepData extends BeamData
      *   do, and drawing it `done` told the operator it had (owner re-walk RW-32: "Creating subscription — Done" beside
      *   "No subscription yet");
      * - the step open at a terminal `failed` is `failed`;
-     * - only the newest step of an unfinished run is `running`.
+     * - only the newest step of an unfinished run is `running`;
+     * - a run ENDS at its first whole-run terminal event (`complete` or `failed`): anything the log says after it under
+     *   the same run id is ignored. Nothing legitimately continues a finished run — a retry or a pack apply mints a new
+     *   one — so a later `running` there is a stray. Before owner-review-20261102 K-18a every `tenants:migrate` logged one
+     *   into the tenant's finished provisioning run, and this fold reopened the step; those rows stay in the log.
      *
      * Earlier runs are not folded: they are History.
      *
@@ -88,12 +92,12 @@ class StatusStepData extends BeamData
                         $step->state = self::DONE;
                     }
                 }
-                $open = null;
+                break;
             } elseif ($event->state === 'failed') {
                 if ($open !== null) {
                     $steps[$open]->state = self::FAILED;
                 }
-                $open = null;
+                break;
             }
         }
 
