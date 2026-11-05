@@ -49,12 +49,14 @@ Register an `Invocable` from a provider; it keys itself by its name:
 app(WorkflowInvocableRegistry::class)->register(app(MyWorkflowInvocable::class));
 ```
 
-The duplicate policy is **supersede**, so registering under a taken name replaces that capability.
+The [**duplicate-key policy**](/beam/docs/foundations/registries#key-policies) is
+**supersede**, so registering under a taken name replaces that capability.
 
 ## Who reads it
 
-A circuit host exposes these as nodes. Tower, for example, offers `workflow.subject-transition` as
-its "Change workflow stage" node and forwards each run to the entry here.
+A circuit host exposes these as nodes. [Splicewire](https://splicewire.test/), for example, offers
+`workflow.subject-transition` as its "Change workflow stage" node and forwards each run to the entry
+here.
 
 ## Related registries
 

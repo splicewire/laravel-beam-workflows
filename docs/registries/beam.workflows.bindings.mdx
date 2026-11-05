@@ -63,9 +63,10 @@ the binding. A malformed key is a miss when read and an error when written.
 
 ## What a duplicate means here
 
-The duplicate policy is **supersede**, and here it is the rule that one lifecycle governs one type.
-Binding a type again replaces the earlier binding, and the replacement is logged with its old and
-new lineage, so a double bind is visible rather than silent.
+The [**duplicate-key policy**](/beam/docs/foundations/registries#key-policies) is
+**supersede**, and here it is the rule that one lifecycle governs one type. Binding a type again
+replaces the earlier binding, and the replacement is logged with its old and new lineage, so a
+double bind is visible rather than silent.
 
 ## Related registries
 

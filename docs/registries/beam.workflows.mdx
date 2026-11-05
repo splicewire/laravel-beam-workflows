@@ -48,10 +48,11 @@ app(GuardRegistry::class)->register('gpu-quota', app(GpuQuotaGuard::class), labe
 
 ## What a duplicate means here
 
-All six **supersede**: registering a key that is already taken replaces the entry. For blueprints,
-guards and effects that is how your application overrides what a package ships. For bindings it is
-the rule that one lifecycle governs one type: binding a type again replaces the earlier binding, and
-the replacement is logged so a double bind is visible rather than silent.
+All six share one [**duplicate-key policy**](/beam/docs/foundations/registries#key-policies),
+**supersede**: registering a key that is already taken replaces the entry. For blueprints, guards
+and effects that is how your application overrides what a package ships. For bindings it is the rule
+that one lifecycle governs one type: binding a type again replaces the earlier binding, and the
+replacement is logged so a double bind is visible rather than silent.
 
 ## Going deeper
 
