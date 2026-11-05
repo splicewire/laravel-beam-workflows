@@ -18,6 +18,7 @@ use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
 use Splicewire\Beam\Workflows\Blueprint\BlueprintValidator;
 use Splicewire\Beam\Workflows\Bridge\DefinitionBuilder;
 use Splicewire\Beam\Workflows\Bridge\WorkflowFactory;
+use Splicewire\Beam\Workflows\Concerns\WiresCentralWorkflowMigrations;
 use Splicewire\Beam\Workflows\Control\Events\WorkflowTransitioned;
 use Splicewire\Beam\Workflows\Control\GuardRegistry;
 use Splicewire\Beam\Workflows\Control\LifecycleService;
@@ -54,25 +55,47 @@ use Splicewire\Beam\Workflows\Type\WorkflowTypeRegistry;
  * persistence" contract). Each state machine passes its own event dispatcher at build time so
  * guard/transition listeners never leak across definitions.
  *
- * packageBooted(): publish config + register the doctor audit + register manifests. The
- * tenant migrations ship PUBLISH-ONLY via spatie/laravel-package-tools' `->hasMigrations([...])`
+ * packageBooted(): publish config + register the doctor audit + register manifests + wire the central
+ * migration declaration (below). The workflow migrations ship PUBLISH-ONLY via
+ * spatie/laravel-package-tools' `->hasMigrations([...])`
  * (see {@see self::configurePackage()}) — the estate-wide publish-only stub convention, mirroring
  * beam-core's own `BeamServiceProvider`. The Control-seam node registration is additive and guarded
  * on the circuit-engine being present, so a host that only wants the Display substrate boots cleanly
  * with no Circuit dependency.
  *
- * The tenant migrations (workflow_definition_lineages/workflow_definition_versions,
- * workflow_bindings, workflow_awaitings) ship as PUBLISH-ONLY spatie/laravel-package-tools stubs —
- * the idiomatic pattern for a PackageServiceProvider. `runsMigrations` stays FALSE, so beam-workflows
- * never loads them at runtime; `vendor:publish --tag=beam-workflows-migrations` re-stamps + sequences
- * timestamped copies into the HOST's `database/migrations/tenant/`, and the host's Stancl tenant pass
- * runs them. TENANT-ONLY — the definition-store, bindings, and awaitings tables are per-tenant
- * workflow data, so there is NO flat/central twin (unlike beam-core's ubiquitous tables), and no
- * `Schema::hasTable()` dup-guard.
+ * The workflow migrations ({@see self::MIGRATIONS}: six create stubs for 8 tables, plus the
+ * `widen_workflow_awaitings_morph_ids_to_string` upgrade) ship as PUBLISH-ONLY spatie/laravel-package-tools
+ * stubs, the idiomatic pattern for a PackageServiceProvider. `runsMigrations` stays FALSE, so
+ * beam-workflows never loads them from its own source; `vendor:publish --tag=beam-workflows-migrations`
+ * re-stamps + sequences timestamped copies into the HOST's `database/migrations/tenant/`.
+ *
+ * Their scope is CENTRAL + TENANT (owner ruling 01c, make-surface ticket 01, 2026-11-05). Per-tenant
+ * workflows run inside a tenant, and central operator flows (beam-ux Release, beam-market listing review,
+ * the beam starter's service desk) run them outside any tenant. The host's tenant pass runs the `tenant/`
+ * copies. The central pass runs them too: through beam-accounts' fallback where beam-tenancy is absent,
+ * and through {@see WiresCentralWorkflowMigrations} where it is present (exactly these published files,
+ * never the directory). The creates are convergent and check existence in the current schema, so each
+ * schema gets its own copy.
  */
 class BeamWorkflowsServiceProvider extends PackageServiceProvider
 {
     use ScopesRegistrant;
+    use WiresCentralWorkflowMigrations;
+
+    /**
+     * The published migrations, in publish order: the single list behind both `hasMigrations()` and the
+     * central declaration, so the two cannot drift.
+     */
+    public const MIGRATIONS = [
+        'tenant/create_workflow_definition_tables',
+        'tenant/create_workflow_bindings_table',
+        'tenant/create_workflow_awaitings_table',
+        // After its create: widens a UUID-morph table an older publish made (see the stub).
+        'tenant/widen_workflow_awaitings_morph_ids_to_string',
+        'tenant/create_workflow_transition_facts_table',
+        'tenant/create_workflow_action_receipts_table',
+        'tenant/create_workflow_reactions_tables',
+    ];
 
     /** Every registry write in register()/boot() that names no `$by` records this package. */
     protected function registrant(): string
@@ -85,16 +108,7 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
         $package
             ->name('laravel-beam-workflows')
             ->hasConfigFile(['beam/workflows'])
-            ->hasMigrations([
-                'tenant/create_workflow_definition_tables',
-                'tenant/create_workflow_bindings_table',
-                'tenant/create_workflow_awaitings_table',
-                // After its create: widens a UUID-morph table an older publish made (see the stub).
-                'tenant/widen_workflow_awaitings_morph_ids_to_string',
-                'tenant/create_workflow_transition_facts_table',
-                'tenant/create_workflow_action_receipts_table',
-                'tenant/create_workflow_reactions_tables',
-            ]);
+            ->hasMigrations(self::MIGRATIONS);
     }
 
     public function packageRegistered(): void
@@ -259,6 +273,10 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
         // the index holds the registry, not a snapshot of it.
         $this->registerAwaitingSeam();
         $this->registerDoctorAudit();
+
+        // Owner ruling 01c: on a beam-tenancy host the central pass also runs this package's own published
+        // workflow files (never the directory), read at migration time. See the trait's docblock.
+        $this->wireCentralWorkflowMigrations(self::MIGRATIONS);
 
         // Self-register into beam-core's install manifest so `splicewire:beam:install` publishes
         // this package's tenant migrations with the rest of the stack. Recohere gap: already
