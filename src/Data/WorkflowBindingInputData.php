@@ -22,7 +22,7 @@ class WorkflowBindingInputData extends BeamData
 {
     public function __construct(
         #[Description('The record type to govern — a schema identifier. Sent in the body rather than the path because a schema `$id` may contain slashes.')]
-        #[Example('https://schemas.splicewire.app/food-safety/restaurant/1')]
+        #[Example('https://app.splicewire.com/schemas/food-safety/restaurant/1')]
         public string $typeKey,
 
         #[Description('Which workflow governs the type, named by its lineage rather than a specific version, so the binding follows the workflow as it is revised. Must name a lineage that already exists.')]
