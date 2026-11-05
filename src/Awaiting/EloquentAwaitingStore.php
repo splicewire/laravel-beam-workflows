@@ -16,6 +16,10 @@ use Splicewire\Beam\Workflows\Awaiting\Events\WorkflowAwaitingStamped;
  * a user (ticket 02) — the inbox arm reads the table directly (ticket 14). `stamp` is DB-level
  * idempotent (insert-or-ignore on the unique natural key, so a re-enter preserves the original enter
  * time); the clears are prefix deletes over that same key.
+ *
+ * The subject id is written and matched as `(string) $subject->getKey()`, the string-morph form
+ * `LifecycleService` and `WorkflowReactionService` already write, so an integer, UUID or ULID key
+ * compares as text on every driver rather than by the driver's own coercion of an integer.
  */
 class EloquentAwaitingStore implements AwaitingStore
 {
@@ -26,7 +30,7 @@ class EloquentAwaitingStore implements AwaitingStore
         $inserted = WorkflowAwaiting::query()->insertOrIgnore([
             'id' => (string) Str::uuid(),
             'subject_type' => $subject->getMorphClass(),
-            'subject_id' => $subject->getKey(),
+            'subject_id' => (string) $subject->getKey(),
             'place' => $place,
             'principal' => $principal,
             'parent_type' => $parentType,
@@ -49,7 +53,7 @@ class EloquentAwaitingStore implements AwaitingStore
 
         WorkflowAwaiting::query()
             ->where('subject_type', $subject->getMorphClass())
-            ->where('subject_id', $subject->getKey())
+            ->where('subject_id', (string) $subject->getKey())
             ->whereIn('place', array_values($places))
             ->delete();
     }
@@ -58,7 +62,7 @@ class EloquentAwaitingStore implements AwaitingStore
     {
         WorkflowAwaiting::query()
             ->where('subject_type', $subject->getMorphClass())
-            ->where('subject_id', $subject->getKey())
+            ->where('subject_id', (string) $subject->getKey())
             ->delete();
     }
 }

@@ -26,7 +26,8 @@ use Splicewire\Beam\Workflows\Awaiting\WorkflowAwaiting;
  * snake-case column keys while the public Data properties follow the package's camelCase convention,
  * so the framework's default model→Data resolution does the work.
  *
- * `subject_type`/`subject_id` stay raw (a morph alias/FQCN + a UUID) rather than resolved to a friendly
+ * `subject_type`/`subject_id` stay raw (a morph alias/FQCN + the subject's key as a string, whatever
+ * its key type) rather than resolved to a friendly
  * label — `WorkflowAwaiting` is deliberately identity-blind and polymorphic across EVERY governed type
  * in the app (not just `BeamUxEntry`), so any resolution here would need a per-type lookup this generic
  * row has no business owning. `place` is already human-legible (blueprint place names ARE the display
