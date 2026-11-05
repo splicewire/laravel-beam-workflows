@@ -16,10 +16,20 @@ use Rushing\SchemaConvergence\ConvergentTable;
  * `role:reviewer`, `watcher:`), NOT a user id — the "everything awaiting me" reverse index is
  * `principal` + subject, read via per-principal-kind inversion (ticket 14). No user column exists.
  *
- * Rows are immutable — created on enter, deleted on leave. The subject morph mirrors the
- * `activity_log`/`StatusEmitted` audit key type (UUID morphs). The nullable `parent` morph is ticket
- * 09's host-supplied rollup key (null = a flat singleton); folded in from the start rather than shipped
- * as a second migration.
+ * Rows are immutable — created on enter, deleted on leave. The nullable `parent` morph is ticket 09's
+ * host-supplied rollup key (null = a flat singleton); folded in from the start rather than shipped as a
+ * second migration.
+ *
+ * Both morph ids are STRINGS, spelled out rather than `uuidMorphs()`: a subject is whatever model the
+ * host governs, and hosts key them every way — the beam starter's ServiceRequest by integer, a
+ * Composition by UUID, others by ULID. A string column holds all three; a `uuid` column refuses the
+ * integer on a typed driver (Postgres: `invalid input syntax for type uuid`), and because the clear runs
+ * inside a transition, that refusal leaves the enclosing transaction aborted. This is the key type the
+ * package's own `workflow_transition_facts` and `workflow_reactions` stubs already use, and beam's
+ * `activity_log` audit stub too (string morphs). The index names are the ones `uuidMorphs()` produced, so
+ * a host's existing indexes still match. A host that already ran the UUID version upgrades through
+ * `widen_workflow_awaitings_morph_ids_to_string.php.stub`, published after this one: this stub reaches
+ * only a fresh database, and its convergent guard reports a wrong-typed column rather than converting it.
  *
  * Shipped as a publish-only spatie/laravel-package-tools stub (`runsMigrations` FALSE): the package
  * publishes this timestamp-less `.php.stub` via `configurePackage()`'s `->hasMigrations([...])`
@@ -34,8 +44,10 @@ return new class extends Migration
             ->define(function (Blueprint $table) {
                 $table->uuid('id')->primary();
 
-                // Who this awaiting is about — mirror the audit subject-morph key type (UUID morphs).
-                $table->uuidMorphs('subject');
+                // Who this awaiting is about. A string id holds integer, UUID and ULID keys alike (see above).
+                $table->string('subject_type');
+                $table->string('subject_id');
+                $table->index(['subject_type', 'subject_id']);
 
                 // The awaiting place (a `$event->to` element) — same vocabulary as `status`.
                 $table->string('place');
@@ -43,8 +55,11 @@ return new class extends Migration
                 // Opaque `kind:selector` recipient token — never a resolved user.
                 $table->string('principal');
 
-                // Ticket 09 rollup key: host-supplied, resolved read-time; null = flat singleton.
-                $table->nullableUuidMorphs('parent');
+                // Ticket 09 rollup key: host-supplied, resolved read-time; null = flat singleton. String ids,
+                // as for the subject.
+                $table->string('parent_type')->nullable();
+                $table->string('parent_id')->nullable();
+                $table->index(['parent_type', 'parent_id']);
 
                 // = enter time; drives ordering. Rows are created/deleted only, never updated, so there is
                 // no `updated_at`.

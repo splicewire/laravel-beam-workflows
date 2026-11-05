@@ -89,6 +89,8 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
                 'tenant/create_workflow_definition_tables',
                 'tenant/create_workflow_bindings_table',
                 'tenant/create_workflow_awaitings_table',
+                // After its create: widens a UUID-morph table an older publish made (see the stub).
+                'tenant/widen_workflow_awaitings_morph_ids_to_string',
                 'tenant/create_workflow_transition_facts_table',
                 'tenant/create_workflow_action_receipts_table',
                 'tenant/create_workflow_reactions_tables',

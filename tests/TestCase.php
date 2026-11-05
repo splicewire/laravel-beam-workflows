@@ -43,16 +43,77 @@ abstract class TestCase extends Orchestra
     protected function defineEnvironment($app): void
     {
         $app['config']->set('database.default', 'testing');
-        $app['config']->set('database.connections.testing', [
-            'driver' => 'sqlite',
-            'database' => ':memory:',
+        $app['config']->set('database.connections.testing', static::suiteConnection());
+    }
+
+    /**
+     * sqlite `:memory:` by default. `PG_TEST_DATABASE` re-points the whole suite at a real Postgres
+     * database (laravel-beam-tenancy's `PostgresTestCase` precedent; `PG_TEST_HOST/PORT/USERNAME/PASSWORD`
+     * optional), because sqlite stores any value in any column and so cannot see a key-type mismatch —
+     * an integer subject id in a `uuid` column is invisible here and a hard error there.
+     *
+     * Name a THROWAWAY database this run owns: every table in it is dropped before each test (see
+     * {@see self::setUp()}), the way a fresh `:memory:` database starts empty. So the name must carry a
+     * disposable prefix ({@see self::refuseNonDisposableDatabase()}), checked here before anything connects
+     * and again beside the drop — a direct `pest` run can never wipe a real database.
+     *
+     * @return array<string, mixed>
+     */
+    protected static function suiteConnection(): array
+    {
+        $database = getenv('PG_TEST_DATABASE');
+
+        if (! $database) {
+            return ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => ''];
+        }
+
+        static::refuseNonDisposableDatabase($database);
+
+        return [
+            'driver' => 'pgsql',
+            'host' => getenv('PG_TEST_HOST') ?: '127.0.0.1',
+            'port' => (int) (getenv('PG_TEST_PORT') ?: 5432),
+            'database' => $database,
+            'username' => getenv('PG_TEST_USERNAME') ?: 'postgres',
+            'password' => getenv('PG_TEST_PASSWORD') ?: '',
+            'charset' => 'utf8',
             'prefix' => '',
-        ]);
+            'search_path' => 'public',
+            'sslmode' => 'prefer',
+        ];
+    }
+
+    /**
+     * The suite drops every table in a Postgres database, so it refuses one whose name does not start with
+     * a disposable prefix and run past it: `BEAM_DEV_DB_PREFIX` when set (the family's scratch-database
+     * prefix), otherwise `ttc_` or `test_`.
+     */
+    protected static function refuseNonDisposableDatabase(string $database): void
+    {
+        $prefixes = getenv('BEAM_DEV_DB_PREFIX') ? [getenv('BEAM_DEV_DB_PREFIX')] : ['ttc_', 'test_'];
+
+        foreach ($prefixes as $prefix) {
+            if (str_starts_with($database, $prefix) && strlen($database) > strlen($prefix)) {
+                return;
+            }
+        }
+
+        throw new \RuntimeException(
+            "Refusing PG_TEST_DATABASE `{$database}`: the suite drops every table in it, so it must be a throwaway "
+            .'database named with a disposable prefix ('.implode(' or ', $prefixes).').'
+        );
     }
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        // A server database outlives the test; `:memory:` does not. Start each test as empty as sqlite does —
+        // but only in a database whose name says it is disposable (re-checked against the live connection).
+        if (Schema::getConnection()->getDriverName() === 'pgsql') {
+            static::refuseNonDisposableDatabase((string) Schema::getConnection()->getDatabaseName());
+            Schema::dropAllTables();
+        }
 
         $this->createActivityLogTable();
         $this->createDefinitionStoreTables();
@@ -112,18 +173,10 @@ abstract class TestCase extends Orchestra
         // `ClearAwaitingsOnTransition` deletes from this table on EVERY applied transition, so it is
         // on the hot path of the lifecycle whether or not a suite stamps awaitings of its own.
         // Without it, any test that applies a transition dies on a missing table rather than on
-        // anything it was written to assert.
-        if (! Schema::hasTable('workflow_awaitings')) {
-            Schema::create('workflow_awaitings', function (Blueprint $table) {
-                $table->uuid('id')->primary();
-                $table->uuidMorphs('subject');
-                $table->string('place');
-                $table->string('principal');
-                $table->nullableUuidMorphs('parent');
-                $table->timestamp('created_at')->nullable();
-                $table->unique(['subject_type', 'subject_id', 'place', 'principal'], 'workflow_awaitings_natural_key');
-            });
-        }
+        // anything it was written to assert. Built by the shipped stub itself rather than a hand copy,
+        // so the suite's subject-key type can never drift from what a host publishes (a convergent
+        // guard: a no-op when the table already holds the declared shape).
+        (require __DIR__.'/../database/migrations/tenant/create_workflow_awaitings_table.php.stub')->up();
 
         if (! Schema::hasTable('workflow_definition_versions')) {
             Schema::create('workflow_definition_versions', function (Blueprint $table) {
