@@ -75,6 +75,6 @@ It registers into registries it doesn't own:
 - [`beam.particle.operations`](https://github.com/splicewire/laravel-beam/blob/main/docs/registries/beam.particle.operations.mdx),
   owned by `splicewire/laravel-beam`: the workflow history and reaction operations, registered when the host calls
   `WorkflowHistoryResources::mount()` or `WorkflowReactionResources::mount()`.
-- [`beam.calendars.action_handlers`](https://github.com/splicewire/laravel-beam-calendars/blob/main/docs/registries/beam.calendars.action_handlers.mdx),
+- [`beam.calendars.action-handlers`](https://github.com/splicewire/laravel-beam-calendars/blob/main/docs/registries/beam.calendars.action-handlers.mdx),
   owned by `splicewire/laravel-beam-calendars`: the scheduled-transition action handler, only when that package is
   installed and the host hasn't registered its own.
