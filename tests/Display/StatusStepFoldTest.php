@@ -130,3 +130,11 @@ it('does not reopen a failed run either: the open step stays failed and a later 
         stepFoldEvent('running', 'migrations'), stepFoldEvent('running', 'seed'),
     ]))->toBe([['database', 'done'], ['migrations', 'failed']]);
 });
+
+it('does not end the run at a sub-part terminal: a ref\'d complete or failed is followed by more work', function () {
+    // Codex K-18a: ADR-0098 — a null ref is the whole run, a ref is a sub-part (StatusEvent).
+    expect(stepFoldStates([stepFoldEvent('running', 'a'), stepFoldEvent('complete', 'a'), stepFoldEvent('running', 'b')]))
+        ->toBe([['a', 'done'], ['b', 'running']])
+        ->and(stepFoldStates([stepFoldEvent('running', 'a'), stepFoldEvent('failed', 'a'), stepFoldEvent('running', 'b')]))
+        ->toBe([['a', 'failed'], ['b', 'running']]);
+});

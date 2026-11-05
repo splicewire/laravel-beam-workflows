@@ -42,10 +42,11 @@ class StatusStepData extends BeamData
      *   "No subscription yet");
      * - the step open at a terminal `failed` is `failed`;
      * - only the newest step of an unfinished run is `running`;
-     * - a run ENDS at its first whole-run terminal event (`complete` or `failed`): anything the log says after it under
-     *   the same run id is ignored. Nothing legitimately continues a finished run — a retry or a pack apply mints a new
-     *   one — so a later `running` there is a stray. Before owner-review-20261102 K-18a every `tenants:migrate` logged one
-     *   into the tenant's finished provisioning run, and this fold reopened the step; those rows stay in the log.
+     * - a run ENDS at its first whole-run terminal event (`complete` or `failed` with a null ref — ADR-0098: a ref names
+     *   a sub-part, which does not end the run): anything the log says after it under the same run id is ignored.
+     *   Nothing legitimately continues a finished run — a retry, a pack apply and active-tenant maintenance each mint a
+     *   new one — so a later `running` there is a stray. Before owner-review-20261102 K-18a every `tenants:migrate`
+     *   logged one into the tenant's finished provisioning run, and this fold reopened the step; those rows stay.
      *
      * Earlier runs are not folded: they are History.
      *
@@ -92,12 +93,18 @@ class StatusStepData extends BeamData
                         $step->state = self::DONE;
                     }
                 }
-                break;
+                $open = null;
+                if ($event->ref === null) {
+                    break;
+                }
             } elseif ($event->state === 'failed') {
                 if ($open !== null) {
                     $steps[$open]->state = self::FAILED;
                 }
-                break;
+                $open = null;
+                if ($event->ref === null) {
+                    break;
+                }
             }
         }
 
