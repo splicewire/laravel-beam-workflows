@@ -7,8 +7,8 @@ use Rushing\SchemaConvergence\ConvergentTable;
 
 /**
  * ADDITIVE ALTER — widens `workflow_awaitings.subject_id` and `.parent_id` from `uuid` to string on hosts
- * that ran `create_workflow_awaitings_table.php.stub` before it declared string morph ids. TENANT-scoped,
- * like the table.
+ * that ran `create_workflow_awaitings_table.php.stub` before it declared string morph ids. It runs wherever
+ * the table does: in the tenant pass, and on a beam-tenancy host in the central pass too (owner ruling 01c).
  *
  * ## Why an ALTER, when the create stub is already correct
  *
@@ -35,8 +35,12 @@ use Rushing\SchemaConvergence\ConvergentTable;
  *
  * ## The cast, and the indexes
  *
- * Postgres converts `uuid` to `varchar` without a `USING` clause (an assignment cast to a string type), so
- * the plain `->change()` is enough. Every value a uuid column held stays valid as its text. The morph
+ * On Postgres the ALTER states its conversion, `USING <column>::text` (owner ruling 01b), through
+ * Laravel's `->using()` column modifier. `PostgresGrammar::compileChange()` appends it as ` using …`
+ * (laravel/framework v13.30.1 and v13.31.0, `Schema/Grammars/PostgresGrammar.php:290`). A grammar that
+ * predates the modifier (v12.67.0's `compileChange()` has no `using`) does not compile it. There the ALTER
+ * is the plain one, and Postgres converts `uuid` to `varchar` by its assignment cast. Either way every
+ * value a uuid column held stays valid as its text. No other engine is given the modifier. The morph
  * indexes and the natural-key unique are kept, not dropped and recreated: Postgres rebuilds a dependent
  * index as part of the type change.
  */
@@ -64,7 +68,15 @@ return new class extends Migration
             }
 
             Schema::table('workflow_awaitings', function (Blueprint $table) use ($column, $nullable) {
-                $table->string($column)->nullable($nullable)->change();
+                $widened = $table->string($column)->nullable($nullable);
+
+                // Postgres states the conversion: `USING <column>::text` (owner ruling 01b). No other engine
+                // is given the modifier, so its ALTER is unchanged.
+                if (Schema::getConnection()->getDriverName() === 'pgsql') {
+                    $widened->using("{$column}::text");
+                }
+
+                $widened->change();
             });
         }
     }
