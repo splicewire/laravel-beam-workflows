@@ -105,9 +105,9 @@ final class CentralWorkflowFreshInstallTest extends TestCase
         $this->assertFalse(Schema::connection('central')->hasTable('decoy_suffix_collision'));
 
         $ran = DB::connection('central')->table('migrations')->pluck('migration')->all();
-        $this->assertSame(array_map($this->name(...), $published), array_values(array_intersect($this->sorted($ran), array_map($this->name(...), $published))));
+        $this->assertSame(array_map($this->migrationName(...), $published), array_values(array_intersect($this->sorted($ran), array_map($this->migrationName(...), $published))));
         foreach ($decoys as $decoy) {
-            $this->assertNotContains($this->name($decoy), $ran);
+            $this->assertNotContains($this->migrationName($decoy), $ran);
         }
     }
 
@@ -126,7 +126,7 @@ final class CentralWorkflowFreshInstallTest extends TestCase
 
         // Every tenant/ file ran in the tenant database: the workflow ones and the other packages' alike.
         $this->assertSame(
-            array_map($this->name(...), $tenantFiles),
+            array_map($this->migrationName(...), $tenantFiles),
             $this->sorted(DB::connection('tenant')->table('migrations')->pluck('migration')->all()),
         );
         $this->assertSame(self::WORKFLOW_TABLES, $this->workflowTables('tenant'));
@@ -196,7 +196,7 @@ final class CentralWorkflowFreshInstallTest extends TestCase
         return $tables;
     }
 
-    private function name(string $file): string
+    private function migrationName(string $file): string
     {
         return basename($file, '.php');
     }
