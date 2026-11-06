@@ -166,10 +166,43 @@ final class CentralWorkflowMigrationsTest extends TestCase
         }
     }
 
-    /** A bare app whose migrator is bound but not yet built, as Laravel's deferred MigrationServiceProvider leaves it. */
-    private function app(): Application
+    /**
+     * The stated boundary (lead 21:50Z; the trait's docblock): files are read when the migrator or the `migrate`
+     * command is BUILT.
+     */
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function test_the_boundary_an_already_built_migrate_misses_a_later_publish_while_a_first_migrate_after_it_sees_it(): void
     {
-        $app = new Application($this->base);
+        BeamTenancyPresence::alias();
+
+        // The limit. This process built `migrate` (and the migrator) before the publish, so the cached command,
+        // resolved again for a second `migrate`, does not re-read the directory.
+        $ran = $this->app();
+        (new CentralWorkflowMigrationsProvider($ran))->boot();
+        $ran->make(MigrateCommand::class);
+        $this->publish();
+        $ran->make(MigrateCommand::class);
+        $this->assertSame([], $ran->make('migrator')->paths());
+
+        // The supported sequence, as `splicewire:beam:install` orders it. A fresh process on a fresh host: the
+        // migrator is built before the publish (stancl's tenants:migrate at Artisan boot), then the process's first
+        // `migrate` comes after it. It sees every published file.
+        $next = $this->base.'/next-process';
+        mkdir($next.'/database/migrations/tenant', 0777, true);
+        $first = $this->app($next);
+        (new CentralWorkflowMigrationsProvider($first))->boot();
+        $migrator = $first->make('migrator');
+        $this->assertSame([], $migrator->paths());
+        $published = $this->publish($next);
+        $first->make(MigrateCommand::class);
+        $this->assertSame($published, $migrator->paths());
+    }
+
+    /** A bare app whose migrator is bound but not yet built, as Laravel's deferred MigrationServiceProvider leaves it. */
+    private function app(?string $base = null): Application
+    {
+        $app = new Application($base ?? $this->base);
         $app->instance('config', new Repository);
         $app->singleton('migrator', function (): Migrator {
             $resolver = new ConnectionResolver;
@@ -187,13 +220,13 @@ final class CentralWorkflowMigrationsTest extends TestCase
      *
      * @return list<string>
      */
-    private function publish(): array
+    private function publish(?string $base = null): array
     {
         $at = \DateTimeImmutable::createFromFormat('Y_m_d_His', self::PUBLISHED_AT);
         $files = [];
 
         foreach (BeamWorkflowsServiceProvider::MIGRATIONS as $i => $migration) {
-            $file = $this->base.'/database/migrations/'.dirname($migration).'/'
+            $file = ($base ?? $this->base).'/database/migrations/'.dirname($migration).'/'
                 .$at->modify("+{$i} seconds")->format('Y_m_d_His').'_'.basename($migration).'.php';
             file_put_contents($file, "<?php\n");
             $files[] = $file;
