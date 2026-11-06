@@ -32,7 +32,6 @@ use Splicewire\Beam\Workflows\Control\WorkflowRunner;
 use Splicewire\Beam\Workflows\Definition\DefinitionStore;
 use Splicewire\Beam\Workflows\Display\StatusEmitter;
 use Splicewire\Beam\Workflows\Display\StatusManager;
-use Splicewire\Beam\Workflows\Doctor\BeamWorkflowsMigrationsAudit;
 use Splicewire\Beam\Workflows\Doctor\MultiPlaceMarkingAudit;
 use Splicewire\Beam\Workflows\Migration\MarkingMigrator;
 use Splicewire\Beam\Workflows\Type\SchemaTypeProjector;
@@ -305,9 +304,9 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
 
         $manifest = $this->app->make(BeamDoctorManifest::class);
 
-        $manifest->register(
+        $manifest->stubMigrations(
             package: 'splicewire/laravel-beam-workflows',
-            audit: BeamWorkflowsMigrationsAudit::class,
+            provider: self::class,
             gate: false,
         );
 

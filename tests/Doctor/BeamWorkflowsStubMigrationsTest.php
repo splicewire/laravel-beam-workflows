@@ -3,16 +3,16 @@
 namespace Splicewire\Beam\Workflows\Tests\Doctor;
 
 use Splicewire\Beam\Doctor\Testing\AssertsStubMigrations;
-use Splicewire\Beam\Workflows\Doctor\BeamWorkflowsMigrationsAudit;
+use Splicewire\Beam\Workflows\BeamWorkflowsServiceProvider;
 use Splicewire\Beam\Workflows\Tests\TestCase;
 
 /**
  * beam-workflows' own operator check: its migrations must stay publish-only .stub files. Mirrors
- * beam-core's `BeamCoreMigrationsAuditTest` shape (`rushing/php-package-topology`'s
+ * beam-core's `BeamCoreStubMigrationsTest` shape (`rushing/php-package-topology`'s
  * `AssertsDeclaredTopology` precedent) — a thin test wrapping a shared engine, declaring only "which
- * audit is mine."
+ * package is mine."
  */
-class BeamWorkflowsMigrationsAuditTest extends TestCase
+class BeamWorkflowsStubMigrationsTest extends TestCase
 {
     use AssertsStubMigrations;
 
@@ -21,8 +21,13 @@ class BeamWorkflowsMigrationsAuditTest extends TestCase
         $this->assertMigrationsArePublishOnlyStubs();
     }
 
-    protected function stubMigrationsAuditClass(): string
+    protected function stubMigrationsPackage(): ?string
     {
-        return BeamWorkflowsMigrationsAudit::class;
+        return 'splicewire/laravel-beam-workflows';
+    }
+
+    protected function stubMigrationsProvider(): ?string
+    {
+        return BeamWorkflowsServiceProvider::class;
     }
 }
