@@ -8,8 +8,8 @@ use Illuminate\Database\Migrations\Migrator;
 
 /**
  * The workflow schema's CENTRAL half on a beam-tenancy host (owner ruling 01c, make-surface ticket 01,
- * 2026-11-05). Central operator flows run workflows outside any tenant — beam-ux's Release, beam-market's
- * listing review, the beam starter's service desk — so the central database needs the same tables the
+ * 2026-11-05). Central operator flows run workflows outside any tenant — beam-ux's Release and
+ * beam-market's listing review — so the central database needs the same tables the
  * tenant pass builds. Without beam-tenancy, beam-accounts' fallback (`WiresTeamsMigrations`) already runs
  * the host's whole published `tenant/` directory centrally, and this adds nothing. beam-tenancy turns that
  * fallback off by existing, so this package declares its own half instead.

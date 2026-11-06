@@ -69,8 +69,8 @@ use Splicewire\Beam\Workflows\Type\WorkflowTypeRegistry;
  * re-stamps + sequences timestamped copies into the HOST's `database/migrations/tenant/`.
  *
  * Their scope is CENTRAL + TENANT (owner ruling 01c, make-surface ticket 01, 2026-11-05). Per-tenant
- * workflows run inside a tenant, and central operator flows (beam-ux Release, beam-market listing review,
- * the beam starter's service desk) run them outside any tenant. The host's tenant pass runs the `tenant/`
+ * workflows run inside a tenant, and central operator flows (beam-ux Release, beam-market listing review)
+ * run them outside any tenant. The host's tenant pass runs the `tenant/`
  * copies. The central pass runs them too: through beam-accounts' fallback where beam-tenancy is absent,
  * and through {@see WiresCentralWorkflowMigrations} where it is present (exactly these published files,
  * never the directory). The creates are convergent and check existence in the current schema, so each
