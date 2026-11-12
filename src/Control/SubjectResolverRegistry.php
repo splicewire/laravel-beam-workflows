@@ -3,6 +3,7 @@
 namespace Splicewire\Beam\Workflows\Control;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Rushing\Popcorn\Registries\Authorizer;
 use Rushing\Popcorn\Registries\BasicRegistry;
 use Rushing\Popcorn\Registries\Gated;
@@ -76,14 +77,21 @@ class SubjectResolverRegistry implements Gated, Registry
      *
      * Without `$id`: the registered resolver callable at `$kind` — the kernel's reading.
      *
+     * `$request` supplies an explicit actor context to the package's stored-particle finder.
+     * Existing host callables retain their one-argument invocation.
+     *
      * @return Model|callable|null
      */
-    public function resolve(RegistryKey|string $key, ?string $id = null): mixed
+    public function resolve(RegistryKey|string $key, ?string $id = null, ?Request $request = null): mixed
     {
         $resolver = $this->addressable($key) ? $this->entries->tryResolve($key) : null;
 
         if ($id === null) {
             return $resolver;
+        }
+
+        if ($request !== null && $resolver instanceof StoredParticleFinder) {
+            return $resolver->resolve($id, $request);
         }
 
         return is_callable($resolver) ? $resolver($id) : null;

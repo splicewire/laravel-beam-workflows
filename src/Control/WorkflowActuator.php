@@ -3,6 +3,7 @@
 namespace Splicewire\Beam\Workflows\Control;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Splicewire\Beam\Workflows\Control\Contracts\ProvidesGuardContext;
 
 /**
@@ -23,11 +24,12 @@ class WorkflowActuator
     ) {}
 
     /**
-     * Resolve a `kind`+id to its managed model (or null).
+     * Resolve a `kind`+id to its managed model (or null). A transport with an actor-bound
+     * request passes it explicitly; stored-particle lookup uses that actor for its read scope.
      */
-    public function subject(string $kind, string $id): ?Model
+    public function subject(string $kind, string $id, ?Request $request = null): ?Model
     {
-        return $this->resolvers->resolve($kind, $id);
+        return $this->resolvers->resolve($kind, $id, $request);
     }
 
     /**

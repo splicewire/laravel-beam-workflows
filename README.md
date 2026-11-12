@@ -50,6 +50,30 @@ Control is owned by the workflow marking store, not the status timeline.
 
 See `docs/adr/` in the app for the ratified Display-vs-Control decision.
 
+## Data-declared stored particles
+
+A resource using Beam's `ActorOwnedParticleBacking` can opt into a workflow without an application
+model. During provider boot, map its canonical schema identity through `SchemaTypeProjector::map`
+and bind that workflow type through `WorkflowBindingRegistry::bind` to an existing workflow lineage.
+An unmapped or unbound schema remains unmanaged; sharing the `BeamParticle` model does not share a workflow.
+
+The package registers a subject finder under the resource key after declaration discovery. It applies
+the declaration's read policy and schema/actor scope. `WorkflowActuator::subject($kind, $id, $request)`
+accepts a trusted transport request; pass it explicitly when a Frame actor differs from the container
+request. Ordinary HTTP calls may use the current request. Existing host subject finders keep their
+one-argument callable contract.
+
+Marking and the immutable definition pin live in `meta.workflow.marking` and `meta.workflow.version`.
+Content payload and ownership remain separate. Existing models implementing `WorkflowManaged` retain
+their declared status/version attributes. Content restore preserves current workflow metadata;
+workflow migration remains the explicit way to move a pinned definition forward.
+
+The automatic stored-particle finder requires a request actor. Worker-driven calendar, Circuit and
+reaction actions on these resources fail closed without a host-provided subject finder and action
+authority that resolve the recorded principal. Opaque action-context tokens are never interpreted by
+this package. Definition pinning alone is not proof of scheduled execution. Workflows already hosted
+by explicit model contracts retain their existing durable-action behavior.
+
 ## Registries
 
 This package declares seven registries. The [workflows cluster page](docs/registries/beam.workflows.mdx) says

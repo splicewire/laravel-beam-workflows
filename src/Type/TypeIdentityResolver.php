@@ -2,6 +2,7 @@
 
 namespace Splicewire\Beam\Workflows\Type;
 
+use Splicewire\Beam\Models\BeamParticle;
 use Splicewire\Beam\Workflows\Type\Contracts\HasSchemaType;
 use Splicewire\Beam\Workflows\Type\Contracts\WorkflowManaged;
 
@@ -51,6 +52,17 @@ class TypeIdentityResolver
     public function candidatesFor(object $object): array
     {
         $candidates = [];
+
+        // Beam cannot implement an upward workflow contract. Its schema binding is the identity.
+        if ($object instanceof BeamParticle && ! $object instanceof HasSchemaType) {
+            $schemaType = $object->recordType();
+            if ($schemaType !== null && $schemaType !== '') {
+                $projected = $this->projector->project($schemaType);
+                if ($projected !== null && $projected !== '') {
+                    $candidates[] = $projected;
+                }
+            }
+        }
 
         // Schema door first — a schema-driven record's schema identity is the more specific key.
         if ($object instanceof HasSchemaType) {

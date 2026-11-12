@@ -12,11 +12,11 @@ use LogicException;
 use Splicewire\Beam\Workflows\Actions\Contracts\WorkflowActionAuthority;
 use Splicewire\Beam\Workflows\Actions\Data\WorkflowActionData;
 use Splicewire\Beam\Workflows\Control\LifecycleService;
+use Splicewire\Beam\Workflows\Control\SubjectState;
 use Splicewire\Beam\Workflows\Control\TransitionContext;
 use Splicewire\Beam\Workflows\Control\TransitionResult;
 use Splicewire\Beam\Workflows\Control\WorkflowActuator;
 use Splicewire\Beam\Workflows\Definition\DefinitionStore;
-use Splicewire\Beam\Workflows\Type\Contracts\WorkflowManaged;
 
 /** Durable, model-blind subject actions used by calendar and Circuit adapters. */
 class WorkflowActionService
@@ -93,7 +93,7 @@ class WorkflowActionService
                 $subject = $this->authorize($data, $context, $connection);
                 $subject = $subject->newQuery()->whereKey($subject->getKey())->lockForUpdate()->firstOrFail();
                 $this->authority->authorize($subject, $data->transition, $context);
-                if (! $subject instanceof WorkflowManaged || $subject->{$subject->workflowVersionAttribute()} !== $data->definitionVersion) {
+                if (! SubjectState::supportsPin($subject) || SubjectState::version($subject) !== $data->definitionVersion) {
                     $result = new TransitionResult([], $data->transition, false, ['The subject workflow definition changed; create a new schedule using the current definition.']);
                 } else {
                     $result = $this->actuator->transition($subject, $data->transition,

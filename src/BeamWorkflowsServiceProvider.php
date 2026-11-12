@@ -22,6 +22,7 @@ use Splicewire\Beam\Workflows\Concerns\WiresCentralWorkflowMigrations;
 use Splicewire\Beam\Workflows\Control\Events\WorkflowTransitioned;
 use Splicewire\Beam\Workflows\Control\GuardRegistry;
 use Splicewire\Beam\Workflows\Control\LifecycleService;
+use Splicewire\Beam\Workflows\Control\StoredParticleSubjects;
 use Splicewire\Beam\Workflows\Control\SubjectResolverRegistry;
 use Splicewire\Beam\Workflows\Control\TransitionEffectRegistry;
 use Splicewire\Beam\Workflows\Control\WorkflowActuator;
@@ -238,6 +239,11 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
+        $this->app->booted(function (): void {
+            if ($this->app->bound(\Splicewire\Beam\Particle\ParticleResourceRegistry::class)) {
+                $this->app->make(StoredParticleSubjects::class)->register();
+            }
+        });
         $this->registerStateMachineNode();
 
         // Optional free-package integration. Calendar storage and defaults remain independent.

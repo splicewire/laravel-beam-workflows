@@ -387,7 +387,7 @@ class LifecycleService
     /** Freeze a definition for an action while preserving an existing subject pin. */
     public function pinDefinition(Model $model): ?string
     {
-        if (! $model instanceof WorkflowManaged || ! $model->exists) {
+        if (! SubjectState::supportsPin($model) || ! $model->exists) {
             return null;
         }
 
@@ -407,7 +407,7 @@ class LifecycleService
                     ->ensureSystemLineage($binding->lineageRef, $blueprint->name, $blueprint)
                     ->activeVersion()->id;
             }
-            $model->{$model->workflowVersionAttribute()} = $versionId;
+            SubjectState::pin($model, $versionId);
             if (! $model->save()) {
                 throw new LogicException('The workflow subject was not persisted.');
             }
@@ -431,9 +431,7 @@ class LifecycleService
         }
 
         // 1. Already pinned → that exact immutable version.
-        $pin = $model instanceof WorkflowManaged
-            ? ($model->{$model->workflowVersionAttribute()} ?? null)
-            : null;
+        $pin = SubjectState::version($model);
 
         if ($pin !== null) {
             $version = $store->version((string) $pin);
@@ -496,11 +494,10 @@ class LifecycleService
             );
         }
 
-        $statusAttr = $model instanceof WorkflowManaged ? $model->workflowStatusAttribute() : 'status';
-        $model->{$statusAttr} = $marking[0] ?? $this->currentPlace($model);
+        SubjectState::mark($model, $marking[0] ?? $this->currentPlace($model));
 
-        if ($versionId !== null && $model instanceof WorkflowManaged) {
-            $model->{$model->workflowVersionAttribute()} = $versionId;
+        if ($versionId !== null) {
+            SubjectState::pin($model, $versionId);
         }
 
         if (! $model->save()) {
@@ -522,8 +519,7 @@ class LifecycleService
      */
     protected function currentPlaces(Model $model, ?WorkflowBlueprint $blueprint = null): array
     {
-        $statusAttr = $model instanceof WorkflowManaged ? $model->workflowStatusAttribute() : 'status';
-        $value = $model->{$statusAttr} ?? null;
+        $value = SubjectState::marking($model);
 
         if ($value instanceof BackedEnum) {
             return [(string) $value->value];

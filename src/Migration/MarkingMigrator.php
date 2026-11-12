@@ -6,11 +6,11 @@ use BackedEnum;
 use Illuminate\Database\ConnectionResolverInterface;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
+use Splicewire\Beam\Workflows\Control\SubjectState;
 use Splicewire\Beam\Workflows\Definition\DefinitionStore;
 use Splicewire\Beam\Workflows\Display\State;
 use Splicewire\Beam\Workflows\Display\StatusEmitter;
 use Splicewire\Beam\Workflows\Display\StatusEvent;
-use Splicewire\Beam\Workflows\Type\Contracts\WorkflowManaged;
 
 /**
  * The ONLY sanctioned way a live object moves from one definition version to a newer one (PRD v2 §3
@@ -100,10 +100,8 @@ class MarkingMigrator
                 $old = $this->place($object);
                 $new = $placeMap[$old];
 
-                $object->{$this->statusAttribute($object)} = $new;
-                if ($object instanceof WorkflowManaged) {
-                    $object->{$object->workflowVersionAttribute()} = $toVersionId;
-                }
+                SubjectState::mark($object, $new);
+                SubjectState::pin($object, $toVersionId);
                 $object->save();
 
                 $this->emitter->emit(
@@ -117,14 +115,9 @@ class MarkingMigrator
         return new MigrationReport($lineageKey, $fromVersionId, $toVersionId, $total, $total, [], applied: true, dryRun: false);
     }
 
-    protected function statusAttribute(Model $object): string
-    {
-        return $object instanceof WorkflowManaged ? $object->workflowStatusAttribute() : 'status';
-    }
-
     protected function place(Model $object): string
     {
-        $value = $object->{$this->statusAttribute($object)} ?? '';
+        $value = SubjectState::marking($object) ?? '';
 
         return $value instanceof BackedEnum ? (string) $value->value : (string) $value;
     }
