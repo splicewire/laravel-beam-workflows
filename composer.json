@@ -27,12 +27,14 @@
         "rushing/php-popcorn": "dev-main",
         "spatie/laravel-activitylog": "^4.0|^5.0",
         "splicewire/laravel-beam": "*",
+        "splicewire/laravel-beam-accounts": "*",
         "symfony/workflow": "^6.4|^7.0"
     },
     "require-dev": {
         "laravel/pint": "^1.0",
         "orchestra/testbench": "^9.0|^10.0",
         "pestphp/pest": "^4.0",
+        "spatie/laravel-typescript-transformer": "^3.0",
         "splicewire/laravel-beam-calendars": "@dev",
         "splicewire/laravel-circuit-engine": "@dev",
         "splicewire/laravel-circuit-spine": "@dev",
@@ -259,6 +261,10 @@
         {
             "type": "git",
             "url": "https://github.com/schemastud/laravel-json-ns.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/splicewire/laravel-beam-accounts.git"
         }
     ]
 }
