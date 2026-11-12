@@ -17,6 +17,8 @@ This dependency also installs the Accounts provider and its Fortify, Passkeys, S
 tenancy and permission dependencies. Laravel hosts discover its existing config/bindings and default
 account routes; its migration stubs remain publish-only. Existing configuration gates are unchanged.
 Consumers that intentionally exclude account routes retain the existing Accounts configuration gate.
+The package testbench explicitly registers Accounts and its selected foundations; that proves its
+default boot behavior, while package auto-discovery belongs to fresh host-install verification.
 
 Tower's old DTO names remain thin deprecated subclasses. Public projections select fully qualified
 public declarations and include RoleOptionData in the same generated workflow slice. A non-role

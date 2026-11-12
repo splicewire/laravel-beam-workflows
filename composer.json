@@ -203,6 +203,13 @@
             }
         },
         {
+            "type": "path",
+            "url": "../laravel-beam-accounts",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
             "type": "git",
             "url": "https://github.com/stephenr85/laravel-popcorn.git"
         },
