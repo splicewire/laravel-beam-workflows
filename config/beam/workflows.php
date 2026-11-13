@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'api_root' => env('BEAM_WORKFLOWS_API_ROOT', 'beam/workflows'),
 
     /*
     |--------------------------------------------------------------------------
