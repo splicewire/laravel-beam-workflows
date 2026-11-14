@@ -369,7 +369,7 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
      * beam's shared MessagePresenters. Whichever provider registers first, these land once the registry resolves.
      * Producers in other packages (tenancy, tower, satellite) register their own step refs.
      */
-    protected function registerStatusPresentation(): void
+    private function registerStatusPresentation(): void
     {
         $this->callAfterResolving(\Splicewire\Beam\Localization\Presentation\MessagePresenters::class, function (\Splicewire\Beam\Localization\Presentation\MessagePresenters $presenters): void {
             $presenters

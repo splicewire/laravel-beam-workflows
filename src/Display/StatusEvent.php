@@ -56,11 +56,6 @@ class StatusEvent
         return $copy;
     }
 
-    public function reference(): ?MessageReferenceData
-    {
-        return $this->reference;
-    }
-
     public static function whole(State $state, ?string $message = null, ?Progress $progress = null, ?DateTimeInterface $at = null): self
     {
         return new self($state, null, $message, $progress, $at);
