@@ -3,16 +3,17 @@
 namespace Splicewire\Beam\Workflows\Reactions;
 
 use Carbon\CarbonImmutable;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 use Splicewire\Beam\Calendars\Actions\ActionContext;
 use Splicewire\Beam\Calendars\Data\CalendarActionData;
 use Splicewire\Beam\Calendars\Registries\ActionHandlerRegistry;
+use Splicewire\Beam\Localization\CodedValidationException;
 use Splicewire\Beam\Workflows\Actions\Data\WorkflowActionData;
 use Splicewire\Beam\Workflows\Actions\WorkflowActionContext;
 use Splicewire\Beam\Workflows\Actions\WorkflowActionService;
+use Splicewire\Beam\Workflows\Localization\WorkflowAuthorizationException;
+use Splicewire\Beam\Workflows\Localization\WorkflowError;
 use Splicewire\Beam\Workflows\Reactions\Data\WorkflowReactionData;
 
 /** Optional calendar integration: configuration is authorized at both ends before it is stored. */
@@ -23,7 +24,7 @@ class WorkflowReactionService
     public function configure(WorkflowReactionData $data, WorkflowActionContext $context, ?ConnectionInterface $connection = null): string
     {
         if ($data->calendarDays < 0 || $data->calendarDays > 36500 || ! in_array($data->timezone, timezone_identifiers_list(), true)) {
-            throw ValidationException::withMessages(['calendar_days' => 'Choose a supported nonnegative calendar-day delay and IANA timezone.']);
+            throw CodedValidationException::for('calendar_days', WorkflowError::InvalidDelay);
         }
         $source = new WorkflowActionData($data->subjectKind, $data->subjectId, $data->transition);
         $subject = $this->workflows->authorize($source, $context, $connection);
@@ -34,7 +35,7 @@ class WorkflowReactionService
             $template = new CalendarActionData($data->actionKind, $data->actionPayload,
                 CarbonImmutable::now('UTC')->toIso8601String(), $data->timezone, calendarId: $data->calendarId);
             $handler = $this->handlers->handler($data->actionKind)
-                ?? throw ValidationException::withMessages(['action_kind' => 'The follow-up handler is unavailable.']);
+                ?? throw CodedValidationException::for('action_kind', WorkflowError::HandlerUnavailable);
             $calendarContext = new ActionContext($context->principal, $context->creator, $context->tenantToken);
             $handler->authorize($template, $calendarContext, $connection);
             $prepared = $handler->prepare($template, $calendarContext, $connection);
@@ -58,10 +59,10 @@ class WorkflowReactionService
             $binding = $connection->table('workflow_reaction_bindings')->where('id', $id)->where('tenant_token', $context->tenantToken)
                 ->where('principal', $context->principal)->lockForUpdate()->first();
             if ($binding === null) {
-                throw new AuthorizationException('The follow-up is unavailable.');
+                throw WorkflowAuthorizationException::for(WorkflowError::FollowUpUnavailable);
             }
             if ($binding->revision !== $expectedRevision) {
-                throw new \Splicewire\Beam\Calendars\Actions\ActionConflict('The follow-up changed. Reload it.');
+                throw WorkflowActionConflict::for(WorkflowError::FollowUpChanged);
             }
             $authored = WorkflowReactionData::from(json_decode($binding->configuration, true, flags: JSON_THROW_ON_ERROR)['authored']);
             $this->workflows->authorize(new WorkflowActionData($authored->subjectKind, $authored->subjectId, $authored->transition), $context, $connection);
@@ -77,7 +78,7 @@ class WorkflowReactionService
         $binding = $connection->table('workflow_reaction_bindings')->where('id', $id)->where('tenant_token', $context->tenantToken)
             ->where('principal', $context->principal)->first();
         if ($binding === null) {
-            throw new AuthorizationException('The follow-up is unavailable.');
+            throw WorkflowAuthorizationException::for(WorkflowError::FollowUpUnavailable);
         }
         $authored = WorkflowReactionData::from(json_decode($binding->configuration, true, flags: JSON_THROW_ON_ERROR)['authored']);
         $this->workflows->authorize(new WorkflowActionData($authored->subjectKind, $authored->subjectId, $authored->transition), $context, $connection);
@@ -108,15 +109,15 @@ class WorkflowReactionService
             $delivery = $connection->table('workflow_reaction_deliveries')->where('id', $id)->where('tenant_token', $context->tenantToken)
                 ->where('principal', $context->principal)->lockForUpdate()->first();
             if ($delivery === null) {
-                throw new AuthorizationException('The follow-up delivery is unavailable.');
+                throw WorkflowAuthorizationException::for(WorkflowError::DeliveryUnavailable);
             }
             $this->read($delivery->binding_id, $context, $connection);
             if ($delivery->attempts !== $expectedAttempts || ! in_array($delivery->status, ['failed', 'blocked', 'pending'], true)) {
-                throw new \Splicewire\Beam\Calendars\Actions\ActionConflict('The follow-up delivery changed. Reload it.');
+                throw WorkflowActionConflict::for(WorkflowError::DeliveryChanged);
             }
             $path = json_decode($delivery->causal_path, true, flags: JSON_THROW_ON_ERROR);
             if (count(array_keys($path, $delivery->binding_id, true)) > 1 || count($path) > 16) {
-                throw ValidationException::withMessages(['id' => 'A causal cycle cannot be retried. Change the follow-up configuration.']);
+                throw CodedValidationException::for('id', WorkflowError::CausalCycle);
             }
             $connection->table('workflow_reaction_deliveries')->where('id', $id)->update(['status' => 'pending', 'blockers' => '[]']);
 

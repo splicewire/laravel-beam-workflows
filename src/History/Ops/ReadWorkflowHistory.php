@@ -3,7 +3,7 @@
 namespace Splicewire\Beam\Workflows\History\Ops;
 
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
+use Splicewire\Beam\Localization\CodedValidationException;
 use Splicewire\Beam\Particle\Attributes\ParticleOp;
 use Splicewire\Beam\Particle\OperationKind;
 use Splicewire\Beam\Particle\Subject\NoSubject;
@@ -14,6 +14,7 @@ use Splicewire\Beam\Workflows\Control\WorkflowTransitionFact;
 use Splicewire\Beam\Workflows\History\Data\ReadWorkflowHistoryInputData;
 use Splicewire\Beam\Workflows\History\Data\ReadWorkflowHistoryOutputData;
 use Splicewire\Beam\Workflows\History\Data\WorkflowHistoryFactData;
+use Splicewire\Beam\Workflows\Localization\WorkflowError;
 
 #[ParticleOp(
     resource: 'workflow-history',
@@ -30,7 +31,7 @@ class ReadWorkflowHistory
     {
         $input = ReadWorkflowHistoryInputData::from($request->all());
         if ($input->limit < 1 || $input->limit > 100) {
-            throw ValidationException::withMessages(['limit' => 'Choose a history page size between 1 and 100.']);
+            throw CodedValidationException::for('limit', WorkflowError::HistoryPageSize);
         }
         // The subject is an authored reference, so its host policy is checked after resolution.
         $context = app(WorkflowActionContextProvider::class)->current();

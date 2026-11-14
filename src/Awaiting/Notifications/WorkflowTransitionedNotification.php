@@ -42,12 +42,12 @@ class WorkflowTransitionedNotification extends Notification implements ShouldQue
     public function toMail(object $notifiable): MailMessage
     {
         $label = Str::of($this->subjectType)->afterLast('\\')->headline();
-        $place = $this->to[0] ?? 'a new state';
+        $place = $this->to[0] ?? null;
 
         return (new MailMessage)
-            ->subject("{$label} update: {$this->readableTransition()}")
-            ->line("A {$label} you're following moved to \"{$place}\".")
-            ->line('This is waiting on you.');
+            ->subject(__('beam-workflows::messages.mail.subject', ['subject' => (string) $label, 'transition' => $this->readableTransition()]))
+            ->line(__($place === null ? 'beam-workflows::messages.mail.moved_unknown' : 'beam-workflows::messages.mail.moved', ['subject' => (string) $label, 'place' => $place ?? '']))
+            ->line(__('beam-workflows::messages.mail.waiting'));
     }
 
     protected function readableTransition(): string

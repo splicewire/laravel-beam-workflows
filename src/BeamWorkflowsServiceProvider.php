@@ -2,6 +2,7 @@
 
 namespace Splicewire\Beam\Workflows;
 
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Psr\Log\LoggerInterface;
 use Rushing\Popcorn\Registries\ScopesRegistrant;
 use Spatie\LaravelPackageTools\Package;
@@ -239,6 +240,10 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
+        $this->callAfterResolving(ExceptionHandler::class, function ($handler): void {
+            $handler->renderable(Localization\WorkflowResponses::render(...));
+        });
+
         $this->registerStatusPresentation();
         $this->app->booted(function (): void {
             if ($this->app->bound(\Splicewire\Beam\Particle\ParticleResourceRegistry::class)) {
