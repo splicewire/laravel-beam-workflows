@@ -27,9 +27,9 @@ safely: guards are code, and this registry is the menu of them.
 
 ## Registering a guard
 
-A guard receives the marking subject and returns `true` to allow the move, or `false` or a string to block it.
-A string becomes the reason shown to the user. Pass a label and a params schema so the editor can
-offer the guard from a menu:
+A guard receives the marking subject and returns `true` to allow the move, or `false` or a string to
+block it. A string becomes the reason shown to the user. Pass a label and a params schema so the
+editor can offer the guard from a menu:
 
 ```php
 use Splicewire\Beam\Workflows\Control\GuardRegistry;
@@ -48,16 +48,18 @@ positional label lands in the wrong slot.
 
 ## Principal-sensitive guards
 
-A guard may also accept `?TransitionContext $context` and `array $params` as its second and
-third arguments. The host supplies the same context to actuator availability, projection and
-transition calls. The token in `$context?->actor` is opaque: resolve it in the host that owns
-its identities, and return a blocking sentence if it is absent or unresolvable. The engine
+A guard opts in by explicitly typing its second parameter as `?TransitionContext $context`; it may
+also accept `array $params` as its third argument. Unrelated optional or variadic parameters keep
+the legacy subject-only invocation. The host supplies the same context to actuator availability,
+projection and transition calls. The token in `$context?->actor` is opaque: resolve it in the host
+that owns its identities, and return a blocking sentence if it is absent or unresolvable. The engine
 never reads ambient authentication. Existing one-argument PHP guards need no change.
 
-`$params` is the transition's authored `metadata.guardParams`, separate from the subject's
-runtime facts and the host's identity context. Projection carries these declared params in
-that same metadata slot; it never exposes runtime facts or identity. Each invocation receives
-a copy of the identity context. See [the decision](../adr/0003-principal-context-for-workflow-guards.md).
+`$params` is the transition's authored `metadata.guardParams`, separate from the subject's runtime
+facts and the host's identity context. Projection carries these declared params in that same
+metadata slot to every runtime projection reader, so these params must be non-secret. It never
+exposes runtime facts or identity. Each invocation receives a copy of the identity context. See [the
+decision](../adr/0003-principal-context-for-workflow-guards.md).
 
 ## Who reads it
 
@@ -70,9 +72,9 @@ a copy of the identity context. See [the decision](../adr/0003-principal-context
 
 ## Overriding a guard
 
-The [**duplicate-key policy**](/beam/docs/foundations/registries#key-policies) is
-**supersede**: register your own callable under the package's name from a provider that boots later,
-and every definition that names it uses yours.
+The [**duplicate-key policy**](/beam/docs/foundations/registries#key-policies) is **supersede**:
+register your own callable under the package's name from a provider that boots later, and every
+definition that names it uses yours.
 
 ## Related registries
 

@@ -5,6 +5,7 @@ namespace Splicewire\Beam\Workflows\Control;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use ReflectionFunction;
+use ReflectionNamedType;
 use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
 use Splicewire\Beam\Workflows\Bridge\DefinitionBuilder;
 use Splicewire\Beam\Workflows\Bridge\WorkflowFactory;
@@ -181,9 +182,12 @@ class WorkflowRunner
         $context ??= $subject instanceof MarkingSubject ? $subject->transitionContext : null;
         $guard = Closure::fromCallable($this->guards->get($ref));
         $signature = new ReflectionFunction($guard);
-        $arguments = [$subject, $context === null ? null : clone $context, $params];
-        // Native PHP callables reject extra arguments; preserve the legacy callable contract too.
-        $verdict = $guard(...($signature->isVariadic() ? $arguments : array_slice($arguments, 0, $signature->getNumberOfParameters())));
+        $contextType = ($signature->getParameters()[1] ?? null)?->getType();
+        // Explicit opt-in: an unrelated optional/variadic second argument belongs to the legacy guard.
+        $acceptsContext = $contextType instanceof ReflectionNamedType && $contextType->getName() === TransitionContext::class;
+        $verdict = $acceptsContext
+            ? $guard($subject, $context === null ? null : clone $context, $params)
+            : $guard($subject);
 
         if ($verdict === true) {
             return null;

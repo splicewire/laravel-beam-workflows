@@ -136,3 +136,13 @@ it('does not carry one callers principal into the next read or attempt', functio
         ->and($actuator->projection($article)['transitions'][0]['reason'])->toBe('A resolvable principal is required.')
         ->and($actuator->transition($article, 'publish')->applied)->toBeFalse();
 });
+
+it('preserves unrelated optional and variadic arguments on legacy guards', function () {
+    $article = PrincipalGuardArticle::create();
+    $actuator = app(WorkflowActuator::class);
+    app(GuardRegistry::class)->register('test-principal', fn (object $subject, array $options = []): bool => $options === []);
+    expect($actuator->available($article, new TransitionContext(actor: 'test:allowed')))->toBe(['publish']);
+    app(GuardRegistry::class)->register('test-principal', fn (object $subject, mixed ...$rest): bool => $rest === []);
+    expect($actuator->available($article, new TransitionContext(actor: 'test:allowed')))->toBe(['publish'])
+        ->and($actuator->transition($article, 'publish')->applied)->toBeTrue();
+});
