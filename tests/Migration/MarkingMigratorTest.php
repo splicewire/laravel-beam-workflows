@@ -138,3 +138,23 @@ it('rejects a place map that targets a place the new version does not declare', 
         cohort: [],
     ))->toThrow(InvalidArgumentException::class, 'does not declare');
 });
+
+it('stores a product reference with each migration status, keeping its English description byte-identical (localization 37, M16)', function () {
+    config(['beam.localization.supported' => ['en', 'es']]);
+    MigratingItem::create(['status' => 'draft', 'workflow_version' => $this->v1]);
+
+    app(MarkingMigrator::class)->migrate(
+        'item.lifecycle', $this->v1, $this->v2,
+        placeMap: ['draft' => 'open', 'review' => 'in_review', 'done' => 'done'],
+        cohort: MigratingItem::where('workflow_version', $this->v1)->get(),
+        runId: 'mig-37',
+    );
+
+    $row = Activity::query()->where('log_name', 'status')->where('properties->run_id', 'mig-37')->sole();
+    expect($row->description)->toBe("migrated: draft → open (version pinned to {$this->v2})")
+        ->and($row->properties['messageReference'])->toBe([
+            'version' => 1, 'key' => 'beam-workflows::status.migrated', 'parameters' => ['old' => 'draft', 'new' => 'open', 'version' => (string) $this->v2],
+            'default' => 'migrated: :old → :new (version pinned to :version)', 'count' => null,
+        ])
+        ->and(Splicewire\Beam\Workflows\Data\StatusEventData::fromActivity($row)->message)->toBe($row->description);
+});

@@ -106,7 +106,10 @@ class MarkingMigrator
 
                 $this->emitter->emit(
                     $object,
-                    StatusEvent::whole(State::Running, "migrated: {$old} → {$new} (version pinned to {$toVersionId})"),
+                    // localization 37 (M16, R1): the same English description, plus a reference the reader renders.
+                    StatusEvent::whole(State::Running, "migrated: {$old} → {$new} (version pinned to {$toVersionId})")->referencing(\Splicewire\Beam\Data\MessageReferenceData::of(
+                        'beam-workflows::status.migrated', 'migrated: :old → :new (version pinned to :version)', ['old' => (string) $old, 'new' => (string) $new, 'version' => (string) $toVersionId],
+                    )),
                     $runId,
                 );
             }

@@ -239,6 +239,7 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
+        $this->registerStatusPresentation();
         $this->app->booted(function (): void {
             if ($this->app->bound(\Splicewire\Beam\Particle\ParticleResourceRegistry::class)) {
                 $this->app->make(StoredParticleSubjects::class)->register();
@@ -363,6 +364,31 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
      * removes the condition entirely: the capability always exists, and whether a circuit node
      * dispatches to it is the host's business.
      */
+    /**
+     * localization 37 (RULING-04 §4–§5): workflows' own product keys and its bare-state presenter, contributed to
+     * beam's shared MessagePresenters. Whichever provider registers first, these land once the registry resolves.
+     * Producers in other packages (tenancy, tower, satellite) register their own step refs.
+     */
+    protected function registerStatusPresentation(): void
+    {
+        $this->callAfterResolving(\Splicewire\Beam\Localization\Presentation\MessagePresenters::class, function (\Splicewire\Beam\Localization\Presentation\MessagePresenters $presenters): void {
+            $presenters
+                ->adapter('beam-workflows::status.transition', ['transition' => 'string', 'places' => 'string'])
+                ->adapter('beam-workflows::status.migrated', ['old' => 'string', 'new' => 'string', 'version' => 'string']);
+            foreach (Display\State::cases() as $state) {
+                $presenters->adapter('beam-workflows::status.state.'.$state->value);
+            }
+            // A row emitted with no message stores its bare state as the description: render the state word.
+            $presenters->identity('status', static function (array $row): ?\Splicewire\Beam\Data\MessageReferenceData {
+                $state = Display\State::tryFrom((string) ($row['state'] ?? ''));
+
+                return $state !== null && ($row['description'] ?? null) === $state->value
+                    ? \Splicewire\Beam\Data\MessageReferenceData::of('beam-workflows::status.state.'.$state->value, $state->value)
+                    : null;
+            });
+        });
+    }
+
     protected function registerStateMachineNode(): void
     {
         $registry = $this->app->make(WorkflowInvocableRegistry::class)

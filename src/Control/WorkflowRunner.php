@@ -199,7 +199,10 @@ class WorkflowRunner
 
             $this->emitter->emit(
                 $statusSubject,
-                StatusEvent::whole($state, "transition:{$transition} → ".implode(',', $places)),
+                // localization 37 (M6, R1): the same English description, plus a reference the reader renders.
+                StatusEvent::whole($state, "transition:{$transition} → ".implode(',', $places))->referencing(\Splicewire\Beam\Data\MessageReferenceData::of(
+                    'beam-workflows::status.transition', 'transition::transition → :places', ['transition' => $transition, 'places' => implode(',', $places)],
+                )),
                 $context->runId,
                 $context->actor,
             );

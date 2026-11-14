@@ -36,6 +36,13 @@ abstract class TestCase extends Orchestra
             // auto-resolvable but unshared, so an owner's describe() lands on a throwaway and the
             // registry is unroutable — index membership as a function of host composition (04 D1).
             PopcornServiceProvider::class,
+            // localization 37: beam's provider, as every production host boots it, so its single namespace allocator
+            // hints this package's shipped lang/ and the shared MessagePresenters registry is bound (test harness only).
+            // data-schemas BEFORE beam, as every production host discovers it and as beam's own harness boots it: beam's
+            // packageBooted APPENDS to `data-schemas.strategies`, and with that key unset the append would replace the
+            // generator's default strategies (localization 37 leg finding; a beam follow-up on the 12/13 list).
+            \Schemastud\DataSchemas\LaravelDataSchemasServiceProvider::class,
+            \Splicewire\Beam\BeamServiceProvider::class,
             BeamWorkflowsServiceProvider::class,
         ];
     }

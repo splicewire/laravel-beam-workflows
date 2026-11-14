@@ -4,6 +4,7 @@ namespace Splicewire\Beam\Workflows\Display;
 
 use DateTimeInterface;
 use Illuminate\Support\Carbon;
+use Splicewire\Beam\Data\MessageReferenceData;
 
 /**
  * The single normalized status shape every producer emits (Seam A).
@@ -34,6 +35,32 @@ class StatusEvent
     /**
      * A status event for the whole process/run (`ref` = null).
      */
+    /** localization 37 (R1): the product reference a NEW write carries, rendered later for its reader. Internal. */
+    private ?MessageReferenceData $reference = null;
+
+    /** localization 37 (R1): raw diagnostic text kept apart from the product line. Storage and log only. */
+    private ?string $diagnostic = null;
+
+    /**
+     * The same event carrying a product reference (and optional raw diagnostic) for its readers (localization 37;
+     * RULING-04 §4, OWNER-RESOLUTION R1). An immutable wither: every public constructor and factory is unchanged. The
+     * stored description stays `message ?? state` (the English line, kept as history), and the broadcast payload is
+     * untouched. Producers reach it through their own internal adapters.
+     */
+    public function referencing(MessageReferenceData $reference, ?string $diagnostic = null): static
+    {
+        $copy = clone $this;
+        $copy->reference = $reference;
+        $copy->diagnostic = $diagnostic;
+
+        return $copy;
+    }
+
+    public function reference(): ?MessageReferenceData
+    {
+        return $this->reference;
+    }
+
     public static function whole(State $state, ?string $message = null, ?Progress $progress = null, ?DateTimeInterface $at = null): self
     {
         return new self($state, null, $message, $progress, $at);
@@ -67,6 +94,7 @@ class StatusEvent
             'ref' => $this->ref,
             'state' => $this->state->value,
             'progress' => $this->progress?->toArray(),
-        ];
+        ] + ($this->reference === null ? [] : ['messageReference' => $this->reference->toProperties()])
+          + ($this->diagnostic === null ? [] : ['diagnostic' => $this->diagnostic]);
     }
 }

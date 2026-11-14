@@ -5,6 +5,7 @@ namespace Splicewire\Beam\Workflows\Data;
 use Spatie\Activitylog\Contracts\Activity;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 use Splicewire\Beam\Data\BeamData;
+use Splicewire\Beam\Localization\Presentation\MessagePresenters;
 
 /**
  * One row of a persisted ADR-0098 Display timeline — the READ twin of
@@ -47,11 +48,23 @@ class StatusEventData extends BeamData
     {
         $properties = $activity->properties ?? collect();
         $progress = $properties['progress'] ?? null;
+        $state = $properties['state'] ?? (string) $activity->event;
+        // localization 37 (RULING-04 §5): the reader's line. That's a NEW write's stored reference, else a presenter for
+        // the row's known identity, else the stored description LITERAL (legacy history; never __(), never parsed).
+        // `properties.diagnostic` is never read here.
+        $message = app(MessagePresenters::class)->present('status', [
+            'ref' => $properties['ref'] ?? null,
+            'state' => $state,
+            'progress' => is_array($progress) ? $progress : null,
+            'run_id' => $properties['run_id'] ?? null,
+            'subject_type' => $activity->subject_type,
+            'description' => $activity->description,
+        ], $properties['messageReference'] ?? null, $activity->description)->text;
 
         return new self(
             id: (string) $activity->getKey(),
-            state: $properties['state'] ?? (string) $activity->event,
-            message: $activity->description,
+            state: $state,
+            message: $message,
             ref: $properties['ref'] ?? null,
             progress: is_array($progress) && isset($progress['done'], $progress['total'])
                 ? new ProgressData(done: (int) $progress['done'], total: (int) $progress['total'])
