@@ -2,7 +2,9 @@
 
 namespace Splicewire\Beam\Workflows\Control;
 
+use Closure;
 use Illuminate\Database\Eloquent\Model;
+use ReflectionFunction;
 use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
 use Splicewire\Beam\Workflows\Bridge\DefinitionBuilder;
 use Splicewire\Beam\Workflows\Bridge\WorkflowFactory;
@@ -57,7 +59,7 @@ class WorkflowRunner
         $definition = $this->builder->build($blueprint);
         $dispatcher = new EventDispatcher;
 
-        $this->wireGuards($dispatcher, $blueprint);
+        $this->wireGuards($dispatcher, $blueprint, $context);
 
         $workflow = $this->factory->make($definition, $blueprint->name, $markingProperty, $dispatcher);
 
@@ -136,12 +138,18 @@ class WorkflowRunner
         return array_values(array_unique($names));
     }
 
-    protected function wireGuards(EventDispatcher $dispatcher, WorkflowBlueprint $blueprint): void
+    protected function wireGuards(EventDispatcher $dispatcher, WorkflowBlueprint $blueprint, ?TransitionContext $context = null): void
     {
-        $dispatcher->addListener("workflow.{$blueprint->name}.guard", function (GuardEvent $event) {
+        $dispatcher->addListener("workflow.{$blueprint->name}.guard", function (GuardEvent $event) use ($context) {
             // Names can be shared by transitions from different places. The guard belongs to
             // this exact Transition object, as recorded by DefinitionBuilder.
-            $blocked = $this->guardVerdict($event->getMetadata('guard', $event->getTransition()), $event->getSubject());
+            $params = $event->getMetadata('guardParams', $event->getTransition()) ?? [];
+            $blocked = $this->guardVerdict(
+                $event->getMetadata('guard', $event->getTransition()),
+                $event->getSubject(),
+                $context,
+                is_array($params) ? $params : [],
+            );
 
             if ($blocked !== null) {
                 $event->setBlocked(true, $blocked);
@@ -152,12 +160,13 @@ class WorkflowRunner
     /**
      * One guard's verdict on a subject: null when it admits the move (or there is no guard), else the
      * sentence that blocks it — the guard's own string, or a generic one when it answered a bare false.
+     * Guards may accept the copied host context and declared params after the legacy subject argument.
      *
      * The single reader of a guard verdict: the guard listener above blocks with it, and
      * {@see LifecycleService::projection()} reports it as a refused move's `reason`, so the stepper reads
      * exactly the sentence a refused attempt would have returned.
      */
-    public function guardVerdict(?string $ref, object $subject): ?string
+    public function guardVerdict(?string $ref, object $subject, ?TransitionContext $context = null, array $params = []): ?string
     {
         if ($ref === null) {
             return null;
@@ -169,7 +178,12 @@ class WorkflowRunner
             return "Guard [{$ref}] is not registered.";
         }
 
-        $verdict = ($this->guards->get($ref))($subject);
+        $context ??= $subject instanceof MarkingSubject ? $subject->transitionContext : null;
+        $guard = Closure::fromCallable($this->guards->get($ref));
+        $signature = new ReflectionFunction($guard);
+        $arguments = [$subject, $context === null ? null : clone $context, $params];
+        // Native PHP callables reject extra arguments; preserve the legacy callable contract too.
+        $verdict = $guard(...($signature->isVariadic() ? $arguments : array_slice($arguments, 0, $signature->getNumberOfParameters())));
 
         if ($verdict === true) {
             return null;

@@ -116,7 +116,7 @@ class LifecycleService
             return new TransitionResult(marking: $from, transition: $transitionName, applied: false, blockers: [$blocker]);
         }
 
-        $subject = MarkingSubject::fromPlaces($from, $this->guardContext($binding, $params));
+        $subject = MarkingSubject::fromPlaces($from, $this->guardContext($binding, $params), $context);
 
         $result = $this->runner->apply($blueprint, $subject, $transitionName, statusSubject: $model, context: $context, emitStatus: false);
 
@@ -280,7 +280,7 @@ class LifecycleService
      * @param  array<string, mixed>  $params
      * @return list<string>
      */
-    public function available(Model $model, array $params = []): array
+    public function available(Model $model, array $params = [], ?TransitionContext $context = null): array
     {
         $resolved = $this->resolve($model);
 
@@ -293,6 +293,7 @@ class LifecycleService
         $subject = MarkingSubject::fromPlaces(
             $this->currentPlaces($model, $blueprint),
             $this->guardContext($binding, $params),
+            $context,
         );
 
         return $this->runner->enabled($blueprint, $subject);
@@ -313,6 +314,7 @@ class LifecycleService
      * shape ticket 04 anticipated — everything the stepper renders, computed server-side so the UI
      * never hardcodes a graph or a button list.
      *
+     * Nonempty authored guard params ride `metadata.guardParams`; runtime facts and identity never do.
      * Each transition also carries its `guard` (the registry key of the rule that gates it, or null) and,
      * when it is a move out of the current marking that is NOT available, the `reason` it is refused: the
      * guard's own sentence, read through {@see WorkflowRunner::guardVerdict()}, the same one a refused
@@ -321,9 +323,9 @@ class LifecycleService
      * for a transition that does not leave the current marking.
      *
      * @param  array<string, mixed>  $params
-     * @return array{type: string, places: list<string>, transitions: list<array{name: string, from: list<string>, to: list<string>, guard: string|null, reason: string|null}>, current: string, available: list<string>}|null
+     * @return array{type: string, places: list<string>, transitions: list<array{name: string, from: list<string>, to: list<string>, guard: string|null, metadata?: array{guardParams: array<string, mixed>}, reason: string|null}>, current: string, available: list<string>}|null
      */
-    public function projection(Model $model, array $params = []): ?array
+    public function projection(Model $model, array $params = [], ?TransitionContext $context = null): ?array
     {
         $resolved = $this->resolve($model);
 
@@ -336,7 +338,7 @@ class LifecycleService
         // One subject for the whole projection: `available` and every refusal read the same marking and
         // the same fused guard context, so the two can never disagree about a move.
         $marking = $this->currentPlaces($model, $blueprint);
-        $subject = MarkingSubject::fromPlaces($marking, $this->guardContext($binding, $params));
+        $subject = MarkingSubject::fromPlaces($marking, $this->guardContext($binding, $params), $context);
         $available = $this->runner->enabled($blueprint, $subject);
 
         return [
@@ -350,7 +352,8 @@ class LifecycleService
                     'from' => $t->from,
                     'to' => $t->to,
                     'guard' => $t->guard,
-                    'reason' => $this->refusal($t, $marking, $available, $subject),
+                    ...($t->guardParams() === [] ? [] : ['metadata' => ['guardParams' => $t->guardParams()]]),
+                    'reason' => $this->refusal($t, $marking, $available, $subject, $context),
                 ],
                 $blueprint->transitions,
             ),
@@ -367,7 +370,7 @@ class LifecycleService
      * @param  list<string>  $marking
      * @param  list<string>  $available
      */
-    protected function refusal(TransitionBlueprint $transition, array $marking, array $available, MarkingSubject $subject): ?string
+    protected function refusal(TransitionBlueprint $transition, array $marking, array $available, MarkingSubject $subject, ?TransitionContext $context = null): ?string
     {
         if ($transition->from === [] || array_diff($transition->from, $marking) !== []) {
             return null;
@@ -380,7 +383,7 @@ class LifecycleService
         // A move out of here that is not enabled has a blocking guard; the fallback covers a refusal the
         // engine could not attribute (no guard answered), which it must still not report silently. A person
         // reads this sentence, so it is plain words and never the transition's machine name (`submit_for_review`).
-        return $this->runner->guardVerdict($transition->guard, $subject)
+        return $this->runner->guardVerdict($transition->guard, $subject, $context, $transition->guardParams())
             ?? "That step isn't available from where it is now.";
     }
 

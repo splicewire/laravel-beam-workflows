@@ -20,15 +20,19 @@ class MarkingSubject
     /** @var array<string, mixed> */
     public array $context = [];
 
+    /** Host identity travels beside the guard facts, never inside them. */
+    public ?TransitionContext $transitionContext = null;
+
     /**
      * @param  list<string>  $places  The current marking as a list of place names.
      * @param  array<string, mixed>  $context
      */
-    public static function fromPlaces(array $places, array $context = []): self
+    public static function fromPlaces(array $places, array $context = [], ?TransitionContext $transitionContext = null): self
     {
         $subject = new self;
         $subject->marking = array_fill_keys($places, 1);
         $subject->context = $context;
+        $subject->transitionContext = $transitionContext === null ? null : clone $transitionContext;
 
         return $subject;
     }

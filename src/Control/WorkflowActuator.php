@@ -34,23 +34,23 @@ class WorkflowActuator
 
     /**
      * The definition projection for a model (places, transitions, current marking, available
-     * transitions), or `null` if unmanaged.
+     * transitions), or `null` if unmanaged. Pass the same host-stamped context as on transition.
      *
      * @return array<string, mixed>|null
      */
-    public function projection(Model $model): ?array
+    public function projection(Model $model, ?TransitionContext $context = null): ?array
     {
-        return $this->lifecycle->projection($model, $this->context($model));
+        return $this->lifecycle->projection($model, $this->context($model), $context);
     }
 
     /**
-     * The available transitions for a model right now.
+     * The available transitions for a model right now, evaluated for the explicit host context.
      *
      * @return list<string>
      */
-    public function available(Model $model): array
+    public function available(Model $model, ?TransitionContext $context = null): array
     {
-        return $this->lifecycle->available($model, $this->context($model));
+        return $this->lifecycle->available($model, $this->context($model), $context);
     }
 
     /**

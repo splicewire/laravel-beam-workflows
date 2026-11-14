@@ -39,7 +39,7 @@ use Rushing\Popcorn\Registries\RegistryKey;
  * `relativeKeys()`, which means a guard hidden from a caller is absent from the menu too rather
  * than leaking its name and param schema through the sidecar.
  *
- * @phpstan-type Guard callable(object): (bool|string)
+ * @phpstan-type Guard callable(object, ?TransitionContext, array<string, mixed>): (bool|string)
  * @phpstan-type CatalogEntry array{name: string, label: string, paramsSchema: array<string, mixed>}
  *
  * @implements Registry<callable>

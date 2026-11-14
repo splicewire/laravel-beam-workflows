@@ -54,6 +54,17 @@ class TransitionBlueprint
         );
     }
 
+    /** The author-set guard params, using the editor's existing metadata slot.
+     *
+     * @return array<string, mixed>
+     */
+    public function guardParams(): array
+    {
+        $params = $this->metadata['guardParams'] ?? [];
+
+        return is_array($params) ? $params : [];
+    }
+
     /**
      * The author-set params for one effect ref (from `metadata.effect_params`), or an empty bag.
      *
