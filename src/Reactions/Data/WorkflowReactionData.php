@@ -4,9 +4,11 @@ namespace Splicewire\Beam\Workflows\Reactions\Data;
 
 use Schemastud\DataSchemas\Attributes\Description;
 use Spatie\LaravelData\Attributes\MapName;
+use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 use Splicewire\Beam\Data\BeamData;
 
 /** One explicit, per-subject transition follow-up; no general-purpose rules language. */
+#[TypeScript]
 class WorkflowReactionData extends BeamData
 {
     /** @param array<string, mixed> $actionPayload */

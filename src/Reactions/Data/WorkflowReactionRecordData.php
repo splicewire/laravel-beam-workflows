@@ -2,8 +2,10 @@
 
 namespace Splicewire\Beam\Workflows\Reactions\Data;
 
+use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 use Splicewire\Beam\Data\BeamData;
 
+#[TypeScript]
 class WorkflowReactionRecordData extends BeamData
 {
     /** @param list<WorkflowReactionDeliveryData> $deliveries */

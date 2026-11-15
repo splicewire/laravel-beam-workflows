@@ -4,8 +4,10 @@ namespace Splicewire\Beam\Workflows\Reactions\Data;
 
 use Schemastud\DataSchemas\Attributes\Description;
 use Spatie\LaravelData\Attributes\MapName;
+use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 use Splicewire\Beam\Data\BeamData;
 
+#[TypeScript]
 class WorkflowReactionRetryData extends BeamData
 {
     public function __construct(

@@ -3,8 +3,10 @@
 namespace Splicewire\Beam\Workflows\History\Data;
 
 use Spatie\LaravelData\Attributes\MapName;
+use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 use Splicewire\Beam\Data\BeamData;
 
+#[TypeScript]
 class ReadWorkflowHistoryOutputData extends BeamData
 {
     /** @param list<WorkflowHistoryFactData> $facts */

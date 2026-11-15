@@ -3,8 +3,10 @@
 namespace Splicewire\Beam\Workflows\Reactions\Data;
 
 use Spatie\LaravelData\Attributes\MapName;
+use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 use Splicewire\Beam\Data\BeamData;
 
+#[TypeScript]
 class WorkflowReactionDeliveryData extends BeamData
 {
     /** @param list<string> $blockers */
