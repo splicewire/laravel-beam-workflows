@@ -10,8 +10,8 @@ use Illuminate\Database\Eloquent\Model;
  * OPAQUE and IDENTITY-FREE: every method takes the subject model + an opaque `kind:selector`
  * `principal` string (e.g. `owner:`, `role:editor`, `watcher:`) which the store persists VERBATIM.
  * The package never resolves a principal to a `User`, never reads one back (the inbox arm queries the
- * host's own Eloquent model directly — ticket 14), and ships no binding of its own: the host binds a
- * concrete store over its tenant table (ticket 12). Until it does, the effect is inert.
+ * host's own Eloquent model directly — ticket 14), and ships a default Eloquent store bound via
+ * `bindIf` over the tenant `workflow_awaitings` table (ticket 12), which a host may override.
  *
  * Write-only, three verbs: `stamp` on enter (idempotent), `clearForPlaces` on leave, `clearForSubject`
  * for hygiene / the event-bypassing migration path (which never re-stamps — awaitings can't be

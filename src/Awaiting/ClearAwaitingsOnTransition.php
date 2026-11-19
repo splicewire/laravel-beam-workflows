@@ -20,7 +20,8 @@ use Splicewire\Beam\Workflows\Control\LifecycleService;
  * would clear the row the stamp just wrote, or stamp then clear it. Clear-then-stamp yields a fresh
  * `created_at`; the reverse loses the row.
  *
- * Inert until the host binds an {@see AwaitingStore} (ticket 12); an empty `from` is a no-op.
+ * Runs through whatever {@see AwaitingStore} is bound — the package ships a default Eloquent one via
+ * `bindIf` (ticket 12); an empty `from`, or no bound store, is a no-op.
  */
 class ClearAwaitingsOnTransition
 {
