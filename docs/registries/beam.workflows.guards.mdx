@@ -43,7 +43,13 @@ app(GuardRegistry::class)->register(
 ```
 
 Closures, first-class callables and invokable objects all work. **Pass `label:` and `paramsSchema:`
-by name.** The third and fourth positions belong to every registry's `$by` and `$ability`, so a
+by name.**
+
+A guard whose params name something that must exist can also pass `validateParams:` (by name, after
+`paramsSchema`): a `callable(array $params): list<string>` the blueprint validator runs on each
+transition's authored params when a definition is saved, returning the errors (empty means valid). It
+reads your own live state, so a definition naming an unknown thing is rejected at save, not at run time.
+Leave it out and only membership is checked. The third and fourth positions belong to every registry's `$by` and `$ability`, so a
 positional label lands in the wrong slot.
 
 ## Principal-sensitive guards
@@ -66,7 +72,8 @@ decision](../adr/0003-principal-context-for-workflow-guards.md).
 - The workflow runner, before every guarded transition. A transition whose guard is not registered is
   **blocked**, never let through: a missing guard is a misconfiguration, and failing closed is the
   safe direction.
-- The blueprint validator, which rejects a stored definition that names a guard not in this registry.
+- The blueprint validator, which rejects a stored definition that names a guard not in this registry,
+  or whose params the guard's own `validateParams` refuses.
 - The Workflows admin and editor, which list the guard catalog (name, label and params schema) so an
   author attaches a guard from the menu. The catalog only lists guards the current user can see.
 

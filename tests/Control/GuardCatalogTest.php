@@ -77,3 +77,54 @@ it('lets a catalog param drive a guard decision (params → context → closure)
     expect(($guards->get('review_not_required'))($blocked))->toBe('Review is required before publishing.')
         ->and(($guards->get('review_not_required'))($allowed))->toBeTrue();
 });
+
+// ---- agreements 11b: a guard's own params validator, run at save ------------------------------------------------------
+
+function paramsBlueprint(string $guard, array $params): WorkflowBlueprint
+{
+    return WorkflowBlueprint::fromArray([
+        'name' => 'x',
+        'places' => ['a', 'b'],
+        'transitions' => [['name' => 't', 'from' => 'a', 'to' => 'b', 'guard' => $guard, 'metadata' => ['guardParams' => $params]]],
+    ]);
+}
+
+it('rejects a definition whose guard params its guard\'s own validator refuses, and accepts valid ones', function () {
+    $known = ['terms'];
+    $guards = new GuardRegistry;
+    $guards->register('names_a_thing', fn () => true, validateParams: function (array $params) use (&$known): array {
+        return in_array($params['thing'] ?? null, $known, true) ? [] : ['thing ['.($params['thing'] ?? '')."] isn't registered."];
+    });
+    $validator = new BlueprintValidator($guards, new TransitionEffectRegistry);
+
+    expect(fn () => $validator->validate(paramsBlueprint('names_a_thing', ['thing' => 'nope'])))
+        ->toThrow(InvalidArgumentException::class, "Transition [t] has guard [names_a_thing] params that aren't valid: thing [nope] isn't registered.");
+    expect($validator->errors(paramsBlueprint('names_a_thing', ['thing' => 'terms'])))->toBe([]);
+
+    // The validator reads LIVE state: registering the thing later makes the same params valid.
+    $known[] = 'nope';
+    expect($validator->errors(paramsBlueprint('names_a_thing', ['thing' => 'nope'])))->toBe([]);
+});
+
+it('keeps a guard with no validator to membership only, whatever its params, and re-registering replaces the validator', function () {
+    $guards = new GuardRegistry;
+    $guards->register('plain', fn () => true);
+    $validator = new BlueprintValidator($guards, new TransitionEffectRegistry);
+
+    expect($validator->errors(paramsBlueprint('plain', ['anything' => 'at all'])))->toBe([])
+        ->and($guards->paramsErrors('plain', ['anything' => 'at all']))->toBe([])
+        ->and($guards->paramsErrors('ghost', []))->toBe([]);
+
+    $guards->register('plain', fn () => true, validateParams: fn (array $p): array => ['always refused']);
+    expect($validator->errors(paramsBlueprint('plain', [])))->toHaveCount(1);
+
+    $guards->register('plain', fn () => true);
+    expect($validator->errors(paramsBlueprint('plain', [])))->toBe([]);
+});
+
+it('never puts the validator on the catalog (the catalog crosses the wire)', function () {
+    $guards = new GuardRegistry;
+    $guards->register('names_a_thing', fn () => true, label: 'Names a thing', validateParams: fn (array $p): array => []);
+
+    expect($guards->catalogEntry('names_a_thing'))->toBe(['name' => 'names_a_thing', 'label' => 'Names a thing', 'paramsSchema' => []]);
+});

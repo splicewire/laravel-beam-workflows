@@ -8,7 +8,7 @@ use Splicewire\Beam\Workflows\Control\TransitionEffectRegistry;
 
 /**
  * Validates a {@see WorkflowBlueprint} before it is written as a definition version (ticket 08 save
- * path). Two checks:
+ * path). Three checks:
  *
  *   1. Referential integrity — every transition's from/to and the initial marking name a declared
  *      place (already enforced by {@see WorkflowBlueprint::assertReferentialIntegrity()}; re-run here
@@ -18,6 +18,9 @@ use Splicewire\Beam\Workflows\Control\TransitionEffectRegistry;
  *      run-time surprise. This is the code-only security line: stored data may reference a guard by
  *      name and supply params, but can never introduce guard logic — an unregistered name is simply
  *      rejected.
+ *   3. Guard params (agreements 11b) — a guard that registered a `validateParams` callable checks the
+ *      transition's authored `metadata.guardParams`; its first error is a save-time validation error. A
+ *      guard with no validator is checked for membership only, as before.
  */
 class BlueprintValidator
 {
@@ -40,6 +43,17 @@ class BlueprintValidator
                     .'in the guard catalog. Guards are code, referenced by name — register it, or pick one '
                     .'from the catalog.',
                 );
+            }
+
+            // agreements 11b: the guard owner's own check of the authored params (null validator: none).
+            if ($transition->guard !== null) {
+                $errors = $this->guards->paramsErrors($transition->guard, $transition->guardParams());
+                if ($errors !== []) {
+                    throw new InvalidArgumentException(
+                        "Transition [{$transition->name}] has guard [{$transition->guard}] params that aren't valid: "
+                        .$errors[0],
+                    );
+                }
             }
 
             foreach ($transition->effects as $effect) {

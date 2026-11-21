@@ -58,6 +58,14 @@ class GuardRegistry implements Gated, Registry
     /** @var array<string, array{name: string, label: string, paramsSchema: array<string, mixed>}> */
     protected array $catalog = [];
 
+    /**
+     * agreements 11b: each guard's optional params validator, by ref. Kept OFF the catalog, which crosses the wire
+     * (a callable never does).
+     *
+     * @var array<string, callable(array<string, mixed>): list<string>>
+     */
+    protected array $paramValidators = [];
+
     public function __construct()
     {
         $this->entries = BasicRegistry::for($this);
@@ -83,8 +91,16 @@ class GuardRegistry implements Gated, Registry
      * real paths before believing a claim of this shape again — a symlink-view grep from the
      * ecosystem root reports zero and exits successfully.
      *
+     * ## `validateParams` (agreements 11b)
+     *
+     * Optional, by name, after `paramsSchema`: `callable(array $params): list<string>`, the guard owner's own check
+     * of a transition's authored `metadata.guardParams`, run by {@see BlueprintValidator} when a definition is saved.
+     * It returns the errors (empty = valid) and reads whatever live state it owns (e.g. a registry of the things a
+     * param may name). Null keeps the original behaviour: membership only. Re-registering a ref replaces it.
+     *
      * @param  callable(object): (bool|string)|mixed  $guard
      * @param  array<string, mixed>  $paramsSchema
+     * @param  (callable(array<string, mixed>): list<string>)|null  $validateParams
      */
     public function register(
         RegistryKey|string $key,
@@ -93,6 +109,7 @@ class GuardRegistry implements Gated, Registry
         ?string $ability = null,
         ?string $label = null,
         array $paramsSchema = [],
+        ?callable $validateParams = null,
     ): static {
         $this->entries->register($key, $guard, $by, $ability);
 
@@ -104,7 +121,27 @@ class GuardRegistry implements Gated, Registry
             'paramsSchema' => $paramsSchema,
         ];
 
+        if ($validateParams === null) {
+            unset($this->paramValidators[$ref]);
+        } else {
+            $this->paramValidators[$ref] = $validateParams;
+        }
+
         return $this;
+    }
+
+    /**
+     * agreements 11b: the errors a guard's own validator finds in a transition's authored params, or `[]` when the
+     * guard registered no validator (or is unknown: membership is {@see has()}'s question, asked first).
+     *
+     * @param  array<string, mixed>  $params
+     * @return list<string>
+     */
+    public function paramsErrors(string $ref, array $params): array
+    {
+        $validator = $this->paramValidators[$ref] ?? null;
+
+        return $validator === null ? [] : array_values(array_map('strval', $validator($params)));
     }
 
     /**

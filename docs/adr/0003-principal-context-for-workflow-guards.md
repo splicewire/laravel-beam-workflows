@@ -61,6 +61,12 @@ Agreements 11b binds the real guard only after this decision and implementation 
 fresh other-family cross-review. It also owns the upstream verdict, unknown-agreement validation and
 accept step. The Agreement picker is unsettled and excluded from 11a.
 
+Agreements 11b (lead ruling Q-11b-b) amends the registry for that validation: `GuardRegistry::register()`
+takes an optional, named `validateParams` callable after `paramsSchema`, which `BlueprintValidator` runs
+on each transition's authored `metadata.guardParams` at save, so a guard's owner rejects params naming
+something that does not exist, against its own live state. A guard registered without one is checked
+for membership only, exactly as before. The validator never reaches the catalog or the wire.
+
 ## Claude review and the amend round
 
 Fresh Claude returned PROCEED on `5bef72c3..52833547`; the review record accompanies READY.
