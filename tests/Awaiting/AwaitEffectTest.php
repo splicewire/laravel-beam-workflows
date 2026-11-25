@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint as TableBlueprint;
 use Illuminate\Support\Facades\Schema;
@@ -75,6 +76,39 @@ class SpyWorkflowNotifier implements WorkflowNotifier
     {
         $this->notified[] = ['principals' => array_values($principals), 'actor' => $actor, 'transition' => $event->transition];
     }
+}
+
+/** A WorkflowNotifier whose delivery fails — the mail transport being down, say (ticket 11). */
+class ThrowingWorkflowNotifier implements WorkflowNotifier
+{
+    public function notify(array $principals, Model $subject, WorkflowTransitioned $event, ?string $actor): void
+    {
+        throw new \RuntimeException('mail transport down');
+    }
+}
+
+/** Captures reported throwables so the test can assert the notifier failure was reported, not lost. */
+class RecordingExceptionHandler implements ExceptionHandler
+{
+    /** @var list<\Throwable> */
+    public array $reported = [];
+
+    public function report(\Throwable $e): void
+    {
+        $this->reported[] = $e;
+    }
+
+    public function shouldReport(\Throwable $e): bool
+    {
+        return true;
+    }
+
+    public function render($request, \Throwable $e)
+    {
+        return null;
+    }
+
+    public function renderForConsole($output, \Throwable $e): void {}
 }
 
 function awaitBlueprint(array $effects = [], array $effectParams = []): WorkflowBlueprint
@@ -168,4 +202,31 @@ it('is a no-op when no principals are configured', function () {
 
     expect($this->notifier->notified)->toBeEmpty()
         ->and($this->store->stamped)->toBeEmpty();
+});
+
+it('stamps the durable awaiting row even when the notifier throws, and reports the failure', function () {
+    // The durable "waiting on you" row must not ride on the email succeeding (ticket 11): a mail
+    // transport failure is reported but never costs the inbox row.
+    $handler = new RecordingExceptionHandler;
+    app()->instance(ExceptionHandler::class, $handler);
+    app()->instance(WorkflowNotifier::class, new ThrowingWorkflowNotifier);
+
+    app(DefinitionStore::class)->ensureSystemLineage('await.lifecycle', 'Await Lifecycle',
+        awaitBlueprint(effects: [AwaitEffect::REF], effectParams: [AwaitEffect::REF => ['principals' => ['owner:']]]));
+    app(WorkflowBindingRegistry::class)->bind('await-ticket', 'await.lifecycle');
+
+    app(LifecycleService::class)->transition(
+        AwaitTicket::create(['status' => 'open']),
+        'submit',
+        context: new TransitionContext(actor: 'user:9'),
+    );
+
+    // The row persisted on the entered place for the configured principal …
+    expect($this->store->stamped)->toHaveCount(1)
+        ->and($this->store->stamped[0]['place'])->toBe('review')
+        ->and($this->store->stamped[0]['principal'])->toBe('owner:');
+
+    // … and the notifier failure was reported, not silently lost.
+    expect($handler->reported)->toHaveCount(1)
+        ->and($handler->reported[0]->getMessage())->toBe('mail transport down');
 });
