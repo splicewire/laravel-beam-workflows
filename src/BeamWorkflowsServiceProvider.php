@@ -7,6 +7,7 @@ use Psr\Log\LoggerInterface;
 use Rushing\Popcorn\Registries\ScopesRegistrant;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
+use Splicewire\Beam\Config\ConfigSectionRegistry;
 use Splicewire\Beam\Doctor\BeamDoctorManifest;
 use Splicewire\Beam\Install\BeamInstallManifest;
 use Splicewire\Beam\Workflows\Admin\WorkflowAdmin;
@@ -20,6 +21,7 @@ use Splicewire\Beam\Workflows\Blueprint\BlueprintValidator;
 use Splicewire\Beam\Workflows\Bridge\DefinitionBuilder;
 use Splicewire\Beam\Workflows\Bridge\WorkflowFactory;
 use Splicewire\Beam\Workflows\Concerns\WiresCentralWorkflowMigrations;
+use Splicewire\Beam\Workflows\Config\BeamWorkflowsSection;
 use Splicewire\Beam\Workflows\Control\Events\WorkflowTransitioned;
 use Splicewire\Beam\Workflows\Control\GuardRegistry;
 use Splicewire\Beam\Workflows\Control\LifecycleService;
@@ -114,6 +116,17 @@ class BeamWorkflowsServiceProvider extends PackageServiceProvider
 
     public function packageRegistered(): void
     {
+        // Ticket 13 (ADR-0245) — declare `beam.workflows` on the Override Ladder. Every key is
+        // Host-tier / Deploy-effect. Registered the same way beam-core registers its own sections
+        // (BeamServiceProvider), with the explicit package config file as the default source.
+        $this->callAfterResolving(ConfigSectionRegistry::class, static function (ConfigSectionRegistry $sections): void {
+            $sections->section(
+                BeamWorkflowsSection::class,
+                owner: 'splicewire/laravel-beam-workflows',
+                packageFile: dirname(__DIR__).'/config/beam/workflows.php',
+            );
+        });
+
         $this->app->bind(Reactions\Contracts\WorkflowSubjectSnapshot::class,
             Reactions\AttributeWorkflowSubjectSnapshot::class);
         $this->app->singleton(WorkflowFactory::class, fn () => new WorkflowFactory);
