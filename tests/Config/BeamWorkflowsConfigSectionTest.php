@@ -69,3 +69,23 @@ it('declares every key Host-tier / Deploy-effect with a clean declarations walk'
     // carries no secret keys, so no misdeclaration finding (secret-open-to-operator / secret-in-list / …).
     expect(ConfigSectionDeclarations::findings(BeamWorkflowsSection::class))->toBe([]);
 });
+
+it('covers a host-populated activity_models class-string map and still passes the acceptance gate', function () {
+    // The shipped default is activity_models => [], which coverage short-circuits on an empty array, so the
+    // "covers every key" test above passes VACUOUSLY — it never exercises the populated-map path. A real host
+    // populates this key with a class-string => class-string map (e.g. Tenant::class => CentralActivityLog::class).
+    // `public array $activity_models` is an untyped array; without an element-shape attribute coverage descends
+    // into a non-empty, non-list map and reports /activity_models uncovered. This locks the #[MapValues('string')]
+    // element shape: a populated map must be COVERED and must still validate through the acceptance gate, and the
+    // shipped [] (asserted above) must keep validating too.
+    $config = config('beam.workflows');
+    $config['activity_models'] = [
+        'App\\Workflows\\FakeSubjectOne' => 'App\\Workflows\\FakeActivityOne',
+        'App\\Workflows\\FakeSubjectTwo' => 'App\\Workflows\\FakeActivityTwo',
+    ];
+
+    expect(ConfigSectionCoverage::uncovered(BeamWorkflowsSection::class, $config))->toBe([]);
+
+    $schema = app(ConfigSectionSchema::class)->for(BeamWorkflowsSection::class);
+    expect(app(AcceptanceGate::class)->accepts($config, $schema))->toBeTrue();
+});
