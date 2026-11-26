@@ -3,6 +3,7 @@
 namespace Splicewire\Beam\Workflows\Config;
 
 use Schemastud\DataSchemas\Attributes\Description;
+use Schemastud\DataSchemas\Attributes\MapValues;
 use Schemastud\DataSchemas\Attributes\Title;
 use Splicewire\Beam\Config\Attributes\ConfigKey;
 use Splicewire\Beam\Config\Attributes\ConfigRoot;
@@ -30,6 +31,7 @@ class BeamWorkflowsSection extends ConfigSection
         public string $status_log_name,
         #[Title('Activity model map'), Description('Maps a workflow subject class to the Activity model (hence table and connection) its status is written to, matched by instanceof so a base class or contract key works. Route a central subject\'s status to a central Activity model when the default would otherwise land on a per-tenant connection — e.g. tenant provisioning, whose first events fire before the tenant schema exists. A class-string to class-string map with no closures, so it stays config-cache safe; an empty map falls through to the global Default activity model override below, and only then to spatie\'s own configured model.')]
         #[ConfigKey(ceiling: ConfigTier::Host, effect: ConfigEffect::Deploy)]
+        #[MapValues('string')]
         public array $activity_models,
         #[Title('Default activity model'), Description('A single global override for the Activity model used when no per-subject activity model map entry matches. Null leaves spatie\'s own configured model in place.')]
         #[ConfigKey(ceiling: ConfigTier::Host, effect: ConfigEffect::Deploy)]
